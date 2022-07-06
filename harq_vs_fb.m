@@ -24,13 +24,13 @@ max_iter = 6; % default is 8 in MATLAB
 err_thr = 0.02;
 
 % Simulation params
-SNRdB_step = 0.25;
-SNRdB_low = -5;
-SNRdB_high = 5;
+SNRdB_step = 1;%0.25;
+SNRdB_low = -2;%-5;
+SNRdB_high = 5;%5;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 M = 2;
-num_blocks = 10e1;
+num_blocks = 10e3;
 
 BER_vec = zeros(size(SNRdB_vec));
 BLER_vec = zeros(size(SNRdB_vec));
@@ -57,7 +57,7 @@ parfor i_s = 1:length(SNRdB_vec)
     noiseVar = 1./(10.^(SNRdB/10));
     BER = 0;
     BLER = 0;
-    BER_HARQ = 0;
+    BER_HARQ = 0;e
     BLER_HARQ = 0;
     BER_FB = 0;
     BLER_FB = 0;
@@ -136,8 +136,12 @@ parfor i_s = 1:length(SNRdB_vec)
             data_est_FB = data_est;
             decision_switch = 0;
             fb_count = 0; % number of times FB scheme was tried and failed
+            max_error_tx = 10;
             fb_scheme = "HARQ";
             alg = 2;
+            chaseError = true;
+            num_err_last_FB = intmax; % so that error compression is done in 1st feedback
+            useNew = true; % signal to decoder whether to use last round or not - if CRC failed
             for i_r = 1:max_rounds-1
                 num_err_FB = sum(mod(data+double(data_est_FB),2));
 
@@ -159,44 +163,64 @@ parfor i_s = 1:length(SNRdB_vec)
 
                 % Update the counter
                 Avg_rounds_FB(i_s) = Avg_rounds_FB(i_s) + 1; 
+                
                 if (fb_scheme == "FB")
                     % Compress the error assuming free feedback
                     data_est_err = mod(data+double(data_est_FB),2);
-                    err_seq = arithenco(data_est_err+1,counts);
-    
-                    assert(length(err_seq) < length(data_est_err),'Compression failed in FB round %d',i_r);
-                    
-                    targetErrCodeRate = length(err_seq)/N;
 
-                    % Pick nPRB such that K_err >= length(err_seq)
-                    tbs_err = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
-                                        
-                    K_err = tbs_err;
-                    N_err = nPRB*NREPerPRB;
-                    R_err = K_err/N_err;
-    
-                    bgn_err = bgn_select(K_err,N_err);
-    
-                    % Padding with zeroes
-                    nz = K_err - length(err_seq);
-                    assert(nz >= 0,'Zero padding failed in FB round %d',i_r);
-                    err_seq_n = [err_seq; zeros(nz,1)];
-                    
-                    % Encoding and Rate matching
-                    errDataInSeq = nrldpc_enc(err_seq_n, R_err, modulation, rv, bgn_err, nlayers);
-    
-                    % Reshape data into binary k-tuples, k = log2(M), and convert to
-                    % integers
-                    k = log2(M);
-                    txData = reshape(errDataInSeq,length(errDataInSeq)/k,k);
-                    txDataSym = bi2de(txData);
-            
-                    % QAM Modulation
-                    txSig = qammod(txDataSym,M);
+                        % If previous transmission had lesser number of
+                        % errors, reuse it instead of compressing new
+                        % error vector
+                    if (chaseError && num_err_FB >= num_err_last_FB)
+                        % skip all encoding, etc. Send symbol computed
+                        % in previous round
+                        new_rxSig_FB = awgn(txSig,SNRdB);
+                        prev_rxSig_FB = [prev_rxSig_FB new_rxSig_FB];
+                        rxSig_FB = mean(prev_rxSig_FB, 2);
+                        useNew = false; % too many errors in previous transmission
+                    else
+                        err_seq = arithenco(data_est_err+1,counts);
+        
+                        assert(length(err_seq) < length(data_est_err),'Compression failed in FB round %d',i_r);
                         
-                    % Pass through AWGN channel
-                    rxSig_FB = awgn(txSig,SNRdB);
+                        targetErrCodeRate = length(err_seq)/N;
+    
+                        % Pick nPRB such that K_err >= length(err_seq)
+                        tbs_err = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                                            
+                        K_err = tbs_err;
+                        N_err = nPRB*NREPerPRB;
+                        R_err = K_err/N_err;
+        
+                        bgn_err = bgn_select(K_err,N_err);
+        
+                        % Padding with zeroes
+                        nz = K_err - length(err_seq);
+                        assert(nz >= 0,'Zero padding failed in FB round %d',i_r);
+                        err_seq_n = [err_seq; zeros(nz,1)];
+                        
+                        % Encoding and Rate matching
+                        errDataInSeq = nrldpc_enc(err_seq_n, R_err, modulation, rv, bgn_err, nlayers);
+        
+                        % Reshape data into binary k-tuples, k = log2(M), and convert to
+                        % integers
+                        k = log2(M);
+                        txData = reshape(errDataInSeq,length(errDataInSeq)/k,k);
+                        txDataSym = bi2de(txData);
+                
+                        % QAM Modulation
+                        txSig = qammod(txDataSym,M);
+                            
+                        % Pass through AWGN channel
+                        rxSig_FB = awgn(txSig,SNRdB);
+
+                        if chaseError
+                            prev_rxSig_FB = rxSig_FB;
+                            useNew = true;
+                        end
+                    end
             
+                    
                     % QAM Demod
                     rxLLR_FB = qamdemod(rxSig_FB,M,'OutputType','LLR');
                 
@@ -208,15 +232,35 @@ parfor i_s = 1:length(SNRdB_vec)
                        
                     data_est_FB_new = mod(data_est_FB + err_deseq_est,2);
                     num_err_FB_new = sum(mod(data+double(data_est_FB),2));
-                    % Correct the error only if CRC passes else round
-                    % wasted
-                    if (crc_chk_FB == 0 || num_err_FB_new == 0)
-                        data_est_FB = mod(data_est_FB + err_deseq_est,2);
-                        num_err_FB = sum(mod(data+double(data_est_FB),2));
+
+
+                    if chaseError
+                        % Correct even if CRC fails. If too many errors,
+                        % can fall back to previous estimate.
+
+                        if useNew % previous correction resulted in lesser errors
+                            num_err_last_FB = num_err_FB;
+                            data_est_FB = mod(data_est_FB + err_deseq_est,2);
+                            num_err_FB = sum(mod(data+double(data_est_FB),2));
+                            old_data_est_FB = data_est_FB;
+                            
+                        else % previous correction resulted in more errors: throw estimate of previous round
+                            % => num_err_last_FB doesn't change
+                            data_est_FB = mod(old_data_est_FB + err_deseq_est,2);
+                            num_err_FB = sum(mod(data+double(old_data_est_FB),2));
+                        end
+                    else
+                        % Correct the error only if CRC passes else round
+                        % wasted
+                        if (crc_chk_FB == 0 || num_err_FB_new == 0)
+                            data_est_FB = mod(data_est_FB + err_deseq_est,2);
+                            num_err_FB = sum(mod(data+double(data_est_FB),2));
+                        end
                     end
+                    
                     if (crc_chk_FB)
                         fb_count = fb_count + 1;
-                        if (fb_count == 2)
+                        if (fb_count == max_error_tx)
                             fb_scheme = "HARQ";
                         end
                     end
@@ -303,6 +347,7 @@ ylabel('BLER');
 leg_HARQ = sprintf('HARQ max. %d rounds',max_rounds);
 leg_FB = sprintf('Feedback max. %d rounds',max_rounds);
 legend('No HARQ', leg_HARQ, leg_FB);
+grid on
 title_name = sprintf('BLER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter',N,K,R, max_iter);
 title(title_name);
 
@@ -315,6 +360,7 @@ ylabel('Avg rounds');
 leg_HARQ = sprintf('HARQ max. %d rounds',max_rounds);
 leg_FB = sprintf('Feedback max. %d rounds',max_rounds);
 legend(leg_HARQ, leg_FB);
+grid on
 title_name = sprintf('HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter',N,K,R, max_iter);
 title(title_name);
 %%
