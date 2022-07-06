@@ -2,12 +2,12 @@
 rng("default");
 
 % Code parameters
-targetCodeRate = 0.9;
+targetCodeRate = 0.8;
 
 % use nrTBS to get K,N
 modulation = 'pi/2-BPSK';
 nlayers = 1;
-nPRB = 8; % Vary this to change the code rate
+nPRB = 8; % Vary this to change the code length
 NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate);
 
@@ -21,19 +21,22 @@ bgn = bgn_select(K,R);
 
 rv = 0;
 max_iter = 6; % default is 8 in MATLAB
-err_thr = 0.02;
+err_thr = 0.05;
 
 % Simulation params
-SNRdB_step = 0.25;
-SNRdB_low = -5;
-SNRdB_high = 5;
+SNRdB_step = 0.2;
+SNRdB_low = -10;
+SNRdB_high = 10;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 M = 2;
-num_blocks = 10e1;
+num_blocks = 10e2;
 
 BER_vec = zeros(size(SNRdB_vec));
 BLER_vec = zeros(size(SNRdB_vec));
+
+BER_vec_ARQ = zeros(size(SNRdB_vec));
+BLER_vec_ARQ = zeros(size(SNRdB_vec));
 
 BER_vec_HARQ = zeros(size(SNRdB_vec));
 BLER_vec_HARQ = zeros(size(SNRdB_vec));
@@ -41,12 +44,14 @@ BLER_vec_HARQ = zeros(size(SNRdB_vec));
 BER_vec_FB = zeros(size(SNRdB_vec));
 BLER_vec_FB = zeros(size(SNRdB_vec));
 
+Avg_rounds_ARQ = zeros(size(SNRdB_vec));
 Avg_rounds_HARQ = zeros(size(SNRdB_vec));
 Avg_rounds_FB = zeros(size(SNRdB_vec));
 
 % Retransmission params
 max_rounds = 10;
 fb_scheme = "HARQ";
+harq_for_fb = 1;
 
 % Compressor set up
 p = 100*err_thr;
@@ -55,12 +60,14 @@ tic;
 parfor i_s = 1:length(SNRdB_vec)
     SNRdB = SNRdB_vec(i_s);
     noiseVar = 1./(10.^(SNRdB/10));
-    BER = 0;
-    BLER = 0;
-    BER_HARQ = 0;
-    BLER_HARQ = 0;
-    BER_FB = 0;
-    BLER_FB = 0;
+
+    BER = 0; BLER = 0;
+
+    BER_ARQ = 0; BLER_ARQ = 0;
+
+    BER_HARQ = 0; BLER_HARQ = 0;
+
+    BER_FB = 0; BLER_FB = 0;
 
     % Print status
     fprintf('Status %0.2f %% done \n', round(i_s/length(SNRdB_vec)*100));
@@ -68,6 +75,7 @@ parfor i_s = 1:length(SNRdB_vec)
     for i_n = 1:num_blocks
         
         % Update the counter 
+        Avg_rounds_ARQ(i_s) = Avg_rounds_ARQ(i_s) + 1;
         Avg_rounds_HARQ(i_s) = Avg_rounds_HARQ(i_s) + 1; 
         Avg_rounds_FB(i_s) = Avg_rounds_FB(i_s) + 1;
 
@@ -99,11 +107,35 @@ parfor i_s = 1:length(SNRdB_vec)
 
         % Check for errors
         num_err = sum(mod(data+double(data_est),2));
+        num_err_ARQ = num_err;
         num_err_HARQ = num_err;
         num_err_FB = num_err;
        
         if (num_err > 0)
             % Retransmission if failure
+            % Always run ARQ for baseline
+            for i_r = 1:max_rounds-1
+
+                % Update the counter
+                Avg_rounds_ARQ(i_s) = Avg_rounds_ARQ(i_s) + 1; 
+                newRxSig = awgn(txSig,SNRdB);
+                rxSig_ARQ = newRxSig
+    
+                % QAM Demod
+                rxLLR_ARQ = qamdemod(rxSig_ARQ,M,'OutputType','LLR');
+                        
+                % Decoding and Rate recovery
+                bgn = bgn_select(K,R);
+                [data_est_ARQ, crc_chk_ARQ]  = nrldpc_dec(rxLLR_ARQ, R, modulation, K, max_iter, rv, nlayers, bgn);
+        
+                % Check for errors
+                num_err_ARQ = sum(mod(data+double(data_est_ARQ),2));
+                
+                if (num_err_ARQ == 0)
+                    break;
+                end
+            end
+
             % Always run HARQ for baseline
             prev_rxSig = rxSig;
             for i_r = 1:max_rounds-1
@@ -133,6 +165,7 @@ parfor i_s = 1:length(SNRdB_vec)
             
             % Always run FB for comparison
             prev_rxSig = rxSig;
+            prev_rxSig_FB = [];
             data_est_FB = data_est;
             decision_switch = 0;
             fb_count = 0; % number of times FB scheme was tried and failed
@@ -175,7 +208,7 @@ parfor i_s = 1:length(SNRdB_vec)
                     N_err = nPRB*NREPerPRB;
                     R_err = K_err/N_err;
     
-                    bgn_err = bgn_select(K_err,N_err);
+                    bgn_err = bgn_select(K_err,R_err);
     
                     % Padding with zeroes
                     nz = K_err - length(err_seq);
@@ -192,10 +225,19 @@ parfor i_s = 1:length(SNRdB_vec)
                     txDataSym = bi2de(txData);
             
                     % QAM Modulation
-                    txSig = qammod(txDataSym,M);
+                    txSig_FB = qammod(txDataSym,M);
                         
                     % Pass through AWGN channel
-                    rxSig_FB = awgn(txSig,SNRdB);
+                    rxSig_FB = awgn(txSig_FB,SNRdB);
+
+                    % Start storing the rxSig for HARQ
+                    if harq_for_fb
+                        prev_rxSig_FB = [prev_rxSig_FB rxSig_FB];
+                        rxSig_FB = mean(prev_rxSig_FB,2);
+                        if size(prev_rxSig_FB,2) > 1
+                            s = 1;
+                        end
+                    end
             
                     % QAM Demod
                     rxLLR_FB = qamdemod(rxSig_FB,M,'OutputType','LLR');
@@ -207,7 +249,7 @@ parfor i_s = 1:length(SNRdB_vec)
                     err_deseq_est = arithdeco(double(err_seq_est),counts,length(data))-1;
                        
                     data_est_FB_new = mod(data_est_FB + err_deseq_est,2);
-                    num_err_FB_new = sum(mod(data+double(data_est_FB),2));
+                    num_err_FB_new = sum(mod(data+double(data_est_FB_new),2));
                     % Correct the error only if CRC passes else round
                     % wasted
                     if (crc_chk_FB == 0 || num_err_FB_new == 0)
@@ -215,7 +257,7 @@ parfor i_s = 1:length(SNRdB_vec)
                         num_err_FB = sum(mod(data+double(data_est_FB),2));
                     end
                     if (crc_chk_FB)
-                        fb_count = fb_count + 1;
+                        fb_count = fb_count + 1; 
                         if (fb_count == 2)
                             fb_scheme = "HARQ";
                         end
@@ -250,11 +292,15 @@ parfor i_s = 1:length(SNRdB_vec)
         end
 
         BER = BER + num_err;
+        BER_ARQ = BER_ARQ + num_err_HARQ;
         BER_HARQ = BER_HARQ + num_err_HARQ;
         BER_FB = BER_FB + num_err_FB;
 
         if (num_err > 0)
             BLER = BLER + 1;
+        end
+        if (num_err_ARQ > 0)
+            BLER_ARQ = BLER_ARQ + 1;
         end
 
         if (num_err_HARQ > 0)
@@ -267,6 +313,9 @@ parfor i_s = 1:length(SNRdB_vec)
     end
     BER_vec(i_s) = BER/(K*num_blocks);
     BLER_vec(i_s) = BLER/(num_blocks);
+    % ARQ
+    BER_vec_ARQ(i_s) = BER_ARQ/(K*num_blocks);
+    BLER_vec_ARQ(i_s) = BLER_ARQ/(num_blocks);
     % HARQ
     BER_vec_HARQ(i_s) = BER_HARQ/(K*num_blocks);
     BLER_vec_HARQ(i_s) = BLER_HARQ/(num_blocks);
@@ -275,13 +324,13 @@ parfor i_s = 1:length(SNRdB_vec)
     BLER_vec_FB(i_s) = BLER_FB/(num_blocks);
 
     % Avg rounds per transmission
+    Avg_rounds_ARQ(i_s) = Avg_rounds_ARQ(i_s)/num_blocks;
     Avg_rounds_HARQ(i_s) = Avg_rounds_HARQ(i_s)/num_blocks;
     Avg_rounds_FB(i_s) = Avg_rounds_FB(i_s)/num_blocks;
 end
 toc;
 
 %%
-figure(1)
 % subplot(2,1,1);
 % semilogy(SNRdB_vec,BER_vec);
 % hold on;
@@ -294,29 +343,39 @@ figure(1)
 % title(title_name);
 
 % subplot(2,1,2)
+figure('Renderer','painters','Position',[100 400 800 500]);
 semilogy(SNRdB_vec,BLER_vec);
 hold on;
+semilogy(SNRdB_vec,BLER_vec_ARQ);
 semilogy(SNRdB_vec,BLER_vec_HARQ);
 semilogy(SNRdB_vec,BLER_vec_FB);
 xlabel('SNR');
 ylabel('BLER');
+leg_ARQ = sprintf('ARQ max. %d rounds',max_rounds);
 leg_HARQ = sprintf('HARQ max. %d rounds',max_rounds);
 leg_FB = sprintf('Feedback max. %d rounds',max_rounds);
-legend('No HARQ', leg_HARQ, leg_FB);
-title_name = sprintf('BLER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter',N,K,R, max_iter);
+legend('No HARQ', leg_ARQ, leg_HARQ, leg_FB);
+title_name = sprintf('BLER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter err thr %.2f',N,K,R, max_iter, err_thr);
 title(title_name);
+filename_BLER = sprintf('results/BLER_LDPC_%d_rate %.2f_dec_iter_%d_err_thr_%.2f.fig',N,R, max_iter, err_thr);
+savefig(filename_BLER);
 
-figure(2)
-semilogy(SNRdB_vec,Avg_rounds_HARQ);
+figure('Renderer','painters','Position',[1000 400 800 500]);
+semilogy(SNRdB_vec,Avg_rounds_ARQ);
 hold on;
+semilogy(SNRdB_vec,Avg_rounds_HARQ);
 semilogy(SNRdB_vec,Avg_rounds_FB);
 xlabel('SNR');
 ylabel('Avg rounds');
+leg_ARQ = sprintf('ARQ max. %d rounds',max_rounds);
 leg_HARQ = sprintf('HARQ max. %d rounds',max_rounds);
 leg_FB = sprintf('Feedback max. %d rounds',max_rounds);
-legend(leg_HARQ, leg_FB);
-title_name = sprintf('HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter',N,K,R, max_iter);
+legend(leg_ARQ, leg_HARQ, leg_FB);
+title_name = sprintf('HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter %.2f',N,K,R, max_iter, err_thr);
 title(title_name);
+filename_AR = sprintf('results/AR_LDPC_%d_rate %.2f_dec_iter_%d_err_thr_%.2f.fig',N,R, max_iter, err_thr);
+savefig(filename_AR);
+
 %%
 function [output] = nrldpc_enc(data_in, rate, modulation, rv, bgn, nlayers)
     in = int8(data_in);
