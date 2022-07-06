@@ -1,13 +1,19 @@
 % Fixing the range for reproducibility 
 rng("default");
 
-% Code parameters
-targetCodeRate = 0.8;
+% Simulation settings : Defaults
+if ~exist('global_settings','var')
+    % Code parameters
+    targetCodeRate = 0.8;
+    nPRB = 8; % Vary this to change the code length
+    max_iter = 6; % default is 8 in MATLAB
+    err_thr = 0.05;
+end
 
 % use nrTBS to get K,N
 modulation = 'pi/2-BPSK';
 nlayers = 1;
-nPRB = 8; % Vary this to change the code length
+
 NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate);
 
@@ -20,17 +26,16 @@ R = K/N;
 bgn = bgn_select(K,R);
 
 rv = 0;
-max_iter = 6; % default is 8 in MATLAB
-err_thr = 0.05;
 
 % Simulation params
 SNRdB_step = 0.2;
-SNRdB_low = -10;
+SNRdB_low = -8;
 SNRdB_high = 10;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
+num_snr = length(SNRdB_vec);
 
 M = 2;
-num_blocks = 10e2;
+%     num_blocks = 10e1;
 
 BER_vec = zeros(size(SNRdB_vec));
 BLER_vec = zeros(size(SNRdB_vec));
@@ -56,6 +61,12 @@ harq_for_fb = 1;
 % Compressor set up
 p = 100*err_thr;
 counts = [100-p p];
+
+parpool_size = min(48,feature('numcores'));
+if (parpool_size ~= 8)
+    parpool(parpool_size);
+end
+
 tic;
 parfor i_s = 1:length(SNRdB_vec)
     SNRdB = SNRdB_vec(i_s);
@@ -70,7 +81,7 @@ parfor i_s = 1:length(SNRdB_vec)
     BER_FB = 0; BLER_FB = 0;
 
     % Print status
-    fprintf('Status %0.2f %% done \n', round(i_s/length(SNRdB_vec)*100));
+    fprintf('Status %0.2f %% done \n', round(i_s/num_snr*100));
 
     for i_n = 1:num_blocks
         
@@ -170,17 +181,17 @@ parfor i_s = 1:length(SNRdB_vec)
             decision_switch = 0;
             fb_count = 0; % number of times FB scheme was tried and failed
             fb_scheme = "HARQ";
-            alg = 2;
+            alg = 1;
+
             for i_r = 1:max_rounds-1
                 num_err_FB = sum(mod(data+double(data_est_FB),2));
 
                 % After every transmission, choose the retransmission scheme
-                % FIX ME : 
-                % Alg1 : Once switched from HARQ to FB, no swicthing back
-                % Alg2 : After trying fb for 2 rounds, go back to HARQ is
-                % it fails
+                % Alg1 : HARQ over FB
+                % Alg2 : FB over FB
 
                 err_per = num_err_FB/K;
+                % Once the error becomes sparse enough, stay on FB scheme
                 if (decision_switch == 0)
                     if (err_per <= err_thr)
                         fb_scheme = "FB";
@@ -234,9 +245,6 @@ parfor i_s = 1:length(SNRdB_vec)
                     if harq_for_fb
                         prev_rxSig_FB = [prev_rxSig_FB rxSig_FB];
                         rxSig_FB = mean(prev_rxSig_FB,2);
-                        if size(prev_rxSig_FB,2) > 1
-                            s = 1;
-                        end
                     end
             
                     % QAM Demod
@@ -256,12 +264,12 @@ parfor i_s = 1:length(SNRdB_vec)
                         data_est_FB = mod(data_est_FB + err_deseq_est,2);
                         num_err_FB = sum(mod(data+double(data_est_FB),2));
                     end
-                    if (crc_chk_FB)
-                        fb_count = fb_count + 1; 
-                        if (fb_count == 2)
-                            fb_scheme = "HARQ";
-                        end
+
+                    % Empty the buffer if crc passes
+                    if (crc_chk_FB == 0)
+                        prev_rxSig_FB = []
                     end
+
                     if (num_err_FB_new == 0)
                         break;
                     end
@@ -329,22 +337,14 @@ parfor i_s = 1:length(SNRdB_vec)
     Avg_rounds_FB(i_s) = Avg_rounds_FB(i_s)/num_blocks;
 end
 toc;
+if (parpool_size ~= 8)
+    delete(gcp('nocreate'));
+end
 
 %%
-% subplot(2,1,1);
-% semilogy(SNRdB_vec,BER_vec);
-% hold on;
-% semilogy(SNRdB_vec,BER_vec_HARQ);
-% semilogy(SNRdB_vec,BER_vec_FB);
-% leg_HARQ = sprintf('HARQ max. %d rounds',max_rounds);
-% leg_FB = sprintf('Feedback max. %d rounds',max_rounds);
-% legend('No HARQ', leg_HARQ, leg_FB);
-% title_name = sprintf('BER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter',N,K,R, max_iter);
-% title(title_name);
-
-% subplot(2,1,2)
+% Plots
 figure('Renderer','painters','Position',[100 400 800 500]);
-semilogy(SNRdB_vec,BLER_vec);
+f = semilogy(SNRdB_vec,BLER_vec);
 hold on;
 semilogy(SNRdB_vec,BLER_vec_ARQ);
 semilogy(SNRdB_vec,BLER_vec_HARQ);
@@ -357,11 +357,13 @@ leg_FB = sprintf('Feedback max. %d rounds',max_rounds);
 legend('No HARQ', leg_ARQ, leg_HARQ, leg_FB);
 title_name = sprintf('BLER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter err thr %.2f',N,K,R, max_iter, err_thr);
 title(title_name);
-filename_BLER = sprintf('results/BLER_LDPC_%d_rate %.2f_dec_iter_%d_err_thr_%.2f.fig',N,R, max_iter, err_thr);
-savefig(filename_BLER);
+filename_BLER_fig = sprintf('results/BLER_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_%.2f.fig',N,R, max_iter, err_thr);
+filename_BLER_png = sprintf('results/BLER_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_%.2f.png',N,R, max_iter, err_thr);
+savefig(filename_BLER_fig);
+saveas(f,filename_BLER_png);
 
 figure('Renderer','painters','Position',[1000 400 800 500]);
-semilogy(SNRdB_vec,Avg_rounds_ARQ);
+f = semilogy(SNRdB_vec,Avg_rounds_ARQ);
 hold on;
 semilogy(SNRdB_vec,Avg_rounds_HARQ);
 semilogy(SNRdB_vec,Avg_rounds_FB);
@@ -373,8 +375,10 @@ leg_FB = sprintf('Feedback max. %d rounds',max_rounds);
 legend(leg_ARQ, leg_HARQ, leg_FB);
 title_name = sprintf('HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter %.2f',N,K,R, max_iter, err_thr);
 title(title_name);
-filename_AR = sprintf('results/AR_LDPC_%d_rate %.2f_dec_iter_%d_err_thr_%.2f.fig',N,R, max_iter, err_thr);
-savefig(filename_AR);
+filename_AR_fig = sprintf('results/AR_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_%.2f.fig',N,R, max_iter, err_thr);
+filename_AR_png = sprintf('results/AR_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_%.2f.png',N,R, max_iter, err_thr);
+savefig(filename_AR_fig);
+saveas(f,filename_AR_png);
 
 %%
 function [output] = nrldpc_enc(data_in, rate, modulation, rv, bgn, nlayers)
