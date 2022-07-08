@@ -2,12 +2,22 @@
 rng("default");
 
 % Code parameters
-targetCodeRate = 0.8;
+if ~exist('global_settings','var')
+    % Code parameters
+    targetCodeRate = 0.9;
+    nPRB = 8; % Vary this to change the code length
+    max_iter = 6; % default is 8 in MATLAB
+    err_thr = 0.02;
+    num_blocks = 10e2;
+
+    SNRdB_step = 0.5;
+    SNRdB_low = -2;
+    SNRdB_high = 4;
+end
 
 % use nrTBS to get K,N
 modulation = 'pi/2-BPSK';
 nlayers = 1;
-nPRB = 8; % Vary this to change the code length
 NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate);
 
@@ -20,17 +30,13 @@ R = K/N;
 bgn = bgn_select(K,R);
 
 rv = 0;
-max_iter = 6; % default is 8 in MATLAB
-err_thr = 0.05;
 
 % Simulation params
-SNRdB_step = 0.2;
-SNRdB_low = -10;
-SNRdB_high = 10;
+
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 M = 2;
-num_blocks = 10e2;
+% num_blocks = 1e4;
 
 BER_vec = zeros(size(SNRdB_vec));
 BLER_vec = zeros(size(SNRdB_vec));
@@ -114,27 +120,27 @@ parfor i_s = 1:length(SNRdB_vec)
         if (num_err > 0)
             % Retransmission if failure
             % Always run ARQ for baseline
-            for i_r = 1:max_rounds-1
-
-                % Update the counter
-                Avg_rounds_ARQ(i_s) = Avg_rounds_ARQ(i_s) + 1;
-                newRxSig = awgn(txSig,SNRdB);
-                rxSig_ARQ = newRxSig
-
-                % QAM Demod
-                rxLLR_ARQ = qamdemod(rxSig_ARQ,M,'OutputType','LLR');
-
-                % Decoding and Rate recovery
-                bgn = bgn_select(K,R);
-                [data_est_ARQ, crc_chk_ARQ]  = nrldpc_dec(rxLLR_ARQ, R, modulation, K, max_iter, rv, nlayers, bgn);
-
-                % Check for errors
-                num_err_ARQ = sum(mod(data+double(data_est_ARQ),2));
-
-                if (num_err_ARQ == 0)
-                    break;
-                end
-            end
+%             for i_r = 1:max_rounds-1
+% 
+%                 % Update the counter
+%                 Avg_rounds_ARQ(i_s) = Avg_rounds_ARQ(i_s) + 1;
+%                 newRxSig = awgn(txSig,SNRdB);
+%                 rxSig_ARQ = newRxSig
+% 
+%                 % QAM Demod
+%                 rxLLR_ARQ = qamdemod(rxSig_ARQ,M,'OutputType','LLR');
+% 
+%                 % Decoding and Rate recovery
+%                 bgn = bgn_select(K,R);
+%                 [data_est_ARQ, crc_chk_ARQ]  = nrldpc_dec(rxLLR_ARQ, R, modulation, K, max_iter, rv, nlayers, bgn);
+% 
+%                 % Check for errors
+%                 num_err_ARQ = sum(mod(data+double(data_est_ARQ),2));
+% 
+%                 if (num_err_ARQ == 0)
+%                     break;
+%                 end
+%             end
 
             % Always run HARQ for baseline
             prev_rxSig = rxSig;
