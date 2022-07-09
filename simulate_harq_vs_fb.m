@@ -1,19 +1,23 @@
 global_settings = 1;
 
-unit_test = 1;
+unit_test = 0;
 
-if ~unit_test
-    nPRB_list = [8, 20, 60];
-    targetCodeRate_list = [0.8, 0.9, 0.2];
-    max_iter = 6;
-    err_thr_list = [0.02, 0.05];
-    num_blocks = 10e0;
-else
+if unit_test
     nPRB_list = [8];
     targetCodeRate_list = [0.8];
     max_iter = 6;
     err_thr_list = [0.02];
-    num_blocks = 10e2;
+    err_thr_ada = 0;
+    SNRdB_low = -8;
+    nFrames = 10e0;
+else
+    nPRB_list = [20];
+    targetCodeRate_list = [0.8];
+    max_iter = 6;
+    err_thr_list = [0.04];
+    err_thr_ada = 0;
+    SNRdB_low = -8;
+    nFrames = 10e3;
 end
 
 for i_n = 1:length(nPRB_list)
