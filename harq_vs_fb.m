@@ -11,6 +11,7 @@ if ~exist('global_settings','var')
     SNRdB_low = -8;%10;
     nFrames = 10e1;
     err_thr_ada = 0;
+    err_thr = 0.04;
 end
 
 % use nrTBS to get K,N
@@ -68,17 +69,20 @@ if (parpool_size ~= 8)
     parpool(parpool_size);
 end
 
-err_thr = 0.04;
+if (err_thr_ada)
+    for id = 1:length(SNRdB_vec)
+        err_thr_ada_list(id) = err_thr_select(N,R,round(SNRdB_vec(id),4),min_ber);
+    end
+end
 
+err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
 tic;
 parfor i_s = 1:length(SNRdB_vec)
     SNRdB = round(SNRdB_vec(i_s),4);
 
     noiseVar = 1./(10.^(SNRdB/10));
 
-    if (err_thr_ada)
-        err_thr_select(N,R,SNRdB, min_ber);
-    end
+    err_thr = err_thr_ada_list(i_s);
 
     % Compressor set up
     p = round(100*err_thr);
@@ -227,10 +231,10 @@ leg_FB_FB = sprintf('FB+FB max. %d rounds',max_rounds);
 legend('No HARQ', leg_ARQ, leg_HARQ, leg_FB_HARQ, leg_FB_FB);
 
 if (err_thr_ada)
-    title_name = sprintf('BLER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter, adaptive err thr ',N,K,R, max_iter);
+    title_name = sprintf('BLER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter, adaptive err thr %.2f',N,K,R, max_iter, min_ber);
     title(title_name);
-    filename_BLER_fig = sprintf('results/BLER_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_max_round_%d.fig',N,R, max_iter, max_rounds);
-    filename_BLER_png = sprintf('results/BLER_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_max_round_%d.png',N,R, max_iter, max_rounds);
+    filename_BLER_fig = sprintf('results/BLER_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_%.2f_max_round_%d.fig',N,R, max_iter, min_ber, max_rounds);
+    filename_BLER_png = sprintf('results/BLER_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_%.2f_max_round_%d.png',N,R, max_iter, min_ber, max_rounds);
 else
     title_name = sprintf('BLER HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter err thr %.2f',N,K,R, max_iter, err_thr);
     title(title_name);
@@ -256,10 +260,10 @@ leg_FB_FB = sprintf('FB+FB max. %d rounds',max_rounds);
 legend('No HARQ',leg_ARQ, leg_HARQ, leg_FB_HARQ, leg_FB_FB);
 
 if (err_thr_ada)
-    title_name = sprintf('Avg. rounds HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter, adaptive err thr ',N,K,R, max_iter);
+    title_name = sprintf('Avg. rounds HARQ vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter, adaptive err thr %0.2f',N,K,R, max_iter, min_ber);
     title(title_name);
-    filename_AR_fig = sprintf('results/AR_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_max_round_%d.fig',N,R, max_iter, max_rounds);
-    filename_AR_png = sprintf('results/AR_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_max_round_%d.png',N,R, max_iter, max_rounds);
+    filename_AR_fig = sprintf('results/AR_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_%0.2f_max_round_%d.fig',N,R, max_iter, min_ber, max_rounds);
+    filename_AR_png = sprintf('results/AR_LDPC_%d_rate_%.2f_dec_iter_%d_err_thr_ada_%0.2f_max_round_%d.png',N,R, max_iter, min_ber, max_rounds);
 else
     title_name = sprintf('Avg. rounds vs Feedback : LDPC (%d,%d), Rate %.2f, %d decoding iter err thr %.2f',N,K,R, max_iter, err_thr);
     title(title_name);
@@ -268,3 +272,8 @@ else
 end
 savefig(filename_AR_fig);
 saveas(f,filename_AR_png);
+
+
+%% 
+disp("err_thr_used : ");
+disp(err_thr_ada_list);

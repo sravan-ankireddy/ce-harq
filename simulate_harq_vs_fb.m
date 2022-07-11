@@ -7,6 +7,7 @@ if unit_test
     targetCodeRate_list = [0.8];
     max_iter = 6;
     err_thr_list = [0.02];
+    min_ber = 1e-5;
     err_thr_ada = 0;
     SNRdB_low = -8;
     nFrames = 10e0;
@@ -14,10 +15,11 @@ else
     nPRB_list = [20];
     targetCodeRate_list = [0.8];
     max_iter = 6;
-    err_thr_list = [0.04];
-    err_thr_ada = 0;
+    err_thr_list = [0.2];
+    min_ber = 1e-2;
+    err_thr_ada = 1;
     SNRdB_low = -8;
-    nFrames = 10e3;
+    nFrames = 10e2;
 end
 
 for i_n = 1:length(nPRB_list)
