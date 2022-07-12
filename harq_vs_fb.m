@@ -8,7 +8,9 @@ if ~exist('global_settings','var')
     nPRB = 20; % Vary this to change the code length
     max_iter = 6; % default is 8 in MATLAB
     min_ber = 1e-5;
-    SNRdB_low = -8;%10;
+    SNRdB_low = -8;
+    SNRdB_high = 10;
+    SNRdB_step = 0.2;
     nFrames = 10e1;
     err_thr_ada = 0;
     err_thr = 0.04;
@@ -32,8 +34,6 @@ bgn = bgn_select(K,R);
 rv = 0;
 
 % Simulation params
-SNRdB_step = 0.2;
-SNRdB_high = SNRdB_low+18;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 num_snr = length(SNRdB_vec);
 

@@ -10,6 +10,8 @@ if unit_test
     min_ber = 1e-5;
     err_thr_ada = 0;
     SNRdB_low = -8;
+    SNRdB_high = 10;
+    SNRdB_step = 0.2;
     nFrames = 10e0;
 else
     nPRB_list = [20];
@@ -19,6 +21,8 @@ else
     min_ber = 1e-2;
     err_thr_ada = 1;
     SNRdB_low = -8;
+    SNRdB_high = 10;
+    SNRdB_step = 0.2;
     nFrames = 10e2;
 end
 
