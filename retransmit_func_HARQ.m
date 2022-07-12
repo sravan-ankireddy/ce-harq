@@ -1,4 +1,4 @@
-function out = retransmit_func_HARQ(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,M,N,K,R,data,txSig,rxSig,data_est,err_thr,max_rounds,counts,num_err)
+function out = retransmit_func_HARQ(SNRdB,modulation,max_iter,rv,nlayers,M,K,R,data,txSig,rxSig,max_rounds)
     
     % Init
     Avg_rounds_HARQ = 0;

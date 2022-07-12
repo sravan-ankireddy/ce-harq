@@ -145,11 +145,11 @@ parfor i_s = 1:length(SNRdB_vec)
         % Start retransmission if 1st round failed
         if (crc_chk > 0)
 
-            out = retransmit_func_ARQ(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,M,N,K,R,data,txSig,rxSig,data_est,err_thr,max_rounds,counts,num_err);
+            out = retransmit_func_ARQ(SNRdB,modulation,max_iter,rv,nlayers,M,K,R,data,txSig,max_rounds);
             Avg_rounds_ARQ(i_s) = Avg_rounds_ARQ(i_s) + out.Avg_rounds_ARQ;
             num_err_ARQ = out.num_err_ARQ;
 
-            out = retransmit_func_HARQ(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,M,N,K,R,data,txSig,rxSig,data_est,err_thr,max_rounds,counts,num_err);
+            out = retransmit_func_HARQ(SNRdB,modulation,max_iter,rv,nlayers,M,K,R,data,txSig,rxSig,max_rounds);
             Avg_rounds_HARQ(i_s) = Avg_rounds_HARQ(i_s) + out.Avg_rounds_HARQ;
             num_err_HARQ = out.num_err_HARQ;
             
