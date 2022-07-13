@@ -20,12 +20,12 @@ function out = retransmit_func_HARQ(SNRdB,modulation,max_iter,rv,nlayers,M,K,R,d
                 
         % Decoding and Rate recovery
         bgn = bgn_select(K,R);
-        [data_est_HARQ, ~]  = nrldpc_dec(rxLLR_HARQ, R, modulation, K, max_iter, rv, nlayers, bgn);
+        [data_est_HARQ, crc_chk_HARQ]  = nrldpc_dec(rxLLR_HARQ, R, modulation, K, max_iter, rv, nlayers, bgn);
 
         % Check for errors
-        num_err_HARQ = sum(mod(data+double(data_est_HARQ),2));
+        num_err_HARQ = sum(data ~= double(data_est_HARQ));
         
-        if (num_err_HARQ == 0)
+        if (crc_chk_HARQ == 0)
             break;
         end
     end
