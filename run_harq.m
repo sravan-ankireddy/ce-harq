@@ -14,7 +14,6 @@ if ~exist('global_settings','var')
     SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
     num_SNRdB = length(SNRdB_vec);
     nFrames = 10e1;
-    err_thr_ada = 0;
     err_thr = 0.05;
     err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
     max_rounds = 10;

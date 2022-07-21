@@ -14,7 +14,6 @@ if ~exist('global_settings','var')
     SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
     num_SNRdB = length(SNRdB_vec);
     nFrames = 10e1;
-    err_thr_ada = 0;
     err_thr = 0.05;
     err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
     max_rounds = 10;
@@ -25,6 +24,7 @@ if ~exist('global_settings','var')
     min_frame_error = 0;
     res_folder_all = "bler_data/fb";
     process_data_fb = 0;
+    err_thr_ada_scheme = "opt";
 end
 
 % use nrTBS to get K,N
@@ -152,7 +152,7 @@ for i_s = 1:length(SNRdB_vec)
         
         % Start retransmission if 1st round failed
         if (crc_chk > 0 && max_rounds > 1)
-            out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,N,K,R,data,txSig,rxLLR,data_est,err_thr,max_rounds,counts,num_err,qam_mod,mod_approx,seed);
+            out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,N,K,R,data,txSig,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed);
             num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
             num_err_FB = out.num_err_FB;
             num_err_FB_per_round = out.num_err_vec;

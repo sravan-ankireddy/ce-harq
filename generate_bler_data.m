@@ -5,12 +5,24 @@ global_settings = 1;
 unit_test = 0;
 
 % run params
-gen_err_thr_harq = 1;
-gen_err_thr_fb = 1;
-gen_harq_vs_fb = 0;
+gen_err_thr_harq = 0;
+gen_err_thr_fb = 0;
+gen_harq_vs_fb = 1;
 
 process_data_harq = 1;
 process_data_fb = 1;
+
+% LUT path
+err_thr_lut_path = "lut_data/fb_lut_data_LDPC_960_rate_0.904_dec_iter_6_err_thr_0.010_to_0.200_max_rounds_10_qm_0_ma_0_numF_10000.mat";
+harq_lut_path = "lut_data/harq_lut_data_LDPC_960_dec_iter_6_rate_0.050_to_0.900_max_rounds_10_qm_0_ma_0_numF_10000.mat";
+
+% generate acomp LUT
+acomp_lut_path = "lut_data/acomp_960_ns_100000.mat";
+if ~isfile(acomp_lut_path)
+   acomp_table = generate_acomp_table;
+else
+    acomp_table = load(acomp_lut_path);
+end
 
 % constant settings
 nPRB = 20;
@@ -19,10 +31,8 @@ mod_approx = 0;
 qam_mod = 0;
 max_rounds = 10;
 nFrames = 10e3;
-err_thr_ada = 0;
-min_bler = 1e-5; % URLLC requirement
+min_bler = 1e-4; % URLLC requirement
 modulation = 'QPSK';
-
 % HARQ params
 targetCodeRate_list = 0.05:0.05:0.9;
 actualCodeRate_list = zeros(size(targetCodeRate_list));
@@ -33,7 +43,7 @@ SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 num_SNRdB = length(SNRdB_vec);
 
 if (unit_test)
-    nFrames = 20e1;
+    nFrames = 40e1;
     targetCodeRate_list = 0.05:0.05:0.1;
     actualCodeRate_list = zeros(size(targetCodeRate_list));
 end
@@ -215,19 +225,42 @@ end
 if (gen_harq_vs_fb == 1)
     
     % HARQ vd FB params
+    targetCodeRate = 0.9;
     SNRdB_low = -5;
-    SNRdB_high = 0;
+    SNRdB_high = 1;
     SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
     num_SNRdB = length(SNRdB_vec);
+    % use either estimate or opt values from LUT
+    err_thr_ada_scheme = "est";
 
-    res_folder = sprintf('bler_data/harq_vs_fb/%d',nFrames);
-
-    if ~exist(res_folder,'dir')
-        mkdir(res_folder);
+    % generate estimates for err_thr
+    if (err_thr_ada_scheme == "est")
+        data = load(harq_lut_path);
+        err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
+        for i_rr = 1:size(err_thr_ada_list_est,1)
+            remRounds = i_rr;
+            for i_ada = 1:size(SNRdB_vec,2)
+                err_thr_ada_list_est(i_rr,i_ada) =  err_thr_select(data,acomp_table,targetCodeRate,SNRdB_vec(i_ada),remRounds,min_bler);
+            end
+        end
     end
 
-    % generate opt err_thr per SNR
-    data = load('lut_data/fb_lut_data_LDPC_960_rate_0.904_dec_iter_6_err_thr_0.010_to_0.200_max_round_10_qm_0_ma_0_numF_50000.mat');
+    if (err_thr_ada_scheme == "est")
+        res_folder = sprintf('bler_data/harq_vs_fb_est/%d',nFrames);
+
+        if ~exist(res_folder,'dir')
+            mkdir(res_folder);
+        end
+    else
+        res_folder = sprintf('bler_data/harq_vs_fb/%d',nFrames);
+
+        if ~exist(res_folder,'dir')
+            mkdir(res_folder);
+        end
+    end
+
+    % look up opt err_thr per SNR
+    data = load(err_thr_lut_path);
     [bler_out, ar_out, snr_out] = process_bler_data(data);
     err_thr_ada_list = bler_out.err_thr_opt;
 
@@ -240,12 +273,11 @@ if (gen_harq_vs_fb == 1)
         nz = (SNRdB_high - snr_out(end))/SNRdB_step;
         err_thr_ada_list = [err_thr_ada_list; err_thr_ada_list(end)*ones(nz,1)];
     end
-    
+
     % HARQ
     % Store full error data : 2xmax_roundsxnum_SNR
     err_data_harq = zeros(2,max_rounds,num_SNRdB);
 
-    targetCodeRate = 0.9;
     % call the main script
     process_data_harq = 0;
     run_harq;   

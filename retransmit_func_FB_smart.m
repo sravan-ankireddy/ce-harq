@@ -1,4 +1,4 @@
-function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,N,K,R,data,txSig,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed)
+function out = retransmit_func_FB_smart(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,N,K,R,data,txSig,rxLLR,data_est,err_thr,max_rounds,counts,num_err,qam_mod,mod_approx,seed)
     
     rng(seed);
     Avg_rounds_FB = 0;
@@ -16,11 +16,6 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
         num_err_FB = sum(data ~= double(data_est_FB));
         err_per = num_err_FB/K;
 
-        % Adaptive err thr
-        if (err_thr_ada_scheme == "est")
-            err_thr = err_hrt_ada_list_est((max_rounds - i_r),i_s);
-        end
-
         % Once the error becomes sparse enough, stay on FB scheme
         % Within the FB scheme, you can choose FB/HARQ based on error
         % vector
@@ -29,8 +24,19 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
                 % Also check if the error is compressible
                 data_est_err_temp = mod(data+double(data_est_FB),2);
                 err_seq_temp = arithenco(data_est_err_temp+1,counts);
+
+                
+                % Even when the err_evc is compressible, check which scheme
+                % has more err probability
+
                 if (length(err_seq_temp) < length(data_est_err_temp))
-                    fb_scheme = "FB";
+%                     fb_scheme = "FB";
+                    data = load('lut_data/harq_lut_data_LDPC_960_dec_iter_6_rate_0.050_to_0.900_max_rounds_10_qm_0_ma_0_numF_10000.mat');
+                    R_err = length(err_seq_temp)/length(data_est_err_temp);
+                    Re = R*R_err;
+                    numR_HARQ = max_rounds;
+                    numR_FB = max_rounds - i_r;
+                    fb_scheme = select_retransmission_scheme(data,R,Re,SNRdB,numR_HARQ,numR_FB);
                     decision_switch = 1;
                 else
                     fb_scheme = "HARQ";
