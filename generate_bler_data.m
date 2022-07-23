@@ -8,12 +8,19 @@ unit_test = 0;
 gen_err_thr_harq = 0;
 gen_err_thr_fb = 0;
 gen_harq_vs_fb = 1;
+% use either estimate or opt values from LUT
+err_thr_ada_scheme = "opt";
+targetCodeRate_harq_vs_fb = 0.9;
 
 process_data_harq = 1;
 process_data_fb = 1;
 
 % LUT path
-err_thr_lut_path = "lut_data/fb_lut_data_LDPC_960_rate_0.904_dec_iter_6_err_thr_0.010_to_0.200_max_rounds_10_qm_0_ma_0_numF_10000.mat";
+if (targetCodeRate_harq_vs_fb == 0.9)
+    err_thr_lut_path = "lut_data/fb_lut_data_LDPC_960_rate_0.904_dec_iter_6_err_thr_0.000_to_0.200_max_rounds_10_qm_0_ma_0_numF_10000.mat";
+elseif (targetCodeRate_harq_vs_fb == 0.8)
+    err_thr_lut_path = "lut_data/fb_lut_data_LDPC_960_rate_0.804_dec_iter_6_err_thr_0.000_to_0.200_max_rounds_10_qm_0_ma_0_numF_10000.mat";
+end
 harq_lut_path = "lut_data/harq_lut_data_LDPC_960_dec_iter_6_rate_0.050_to_0.900_max_rounds_10_qm_0_ma_0_numF_10000.mat";
 
 % generate acomp LUT
@@ -31,7 +38,7 @@ mod_approx = 0;
 qam_mod = 0;
 max_rounds = 10;
 nFrames = 10e3;
-min_bler = 1e-4; % URLLC requirement
+min_bler = 1e-4; % URLLC requirement 1e-5
 modulation = 'QPSK';
 % HARQ params
 targetCodeRate_list = 0.05:0.05:0.9;
@@ -137,7 +144,7 @@ if (gen_err_thr_fb == 1)
     % FB params
     targetCodeRate = 0.8;
     res_folder = sprintf('bler_data/fb/%d',nFrames);
-    err_thr_list = 0.01:0.01:0.2;
+    err_thr_list = 0:0.005:0.2;
     SNRdB_low = -6;
     SNRdB_high =-1;
     SNRdB_step = 0.2;
@@ -160,6 +167,9 @@ if (gen_err_thr_fb == 1)
 
     % Store full error data : 2xerr_thr_listxmax_roundsxnum_SNR
     err_data_all_thr = zeros(2,length(err_thr_list),max_rounds,num_SNRdB);
+
+    % init. estimates for err_thr
+    err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
 
     % Store Avg. rounds data : err_thr_listxnum_SNR
     ar_data_all_thr = zeros(length(err_thr_list),num_SNRdB);
@@ -225,18 +235,16 @@ end
 if (gen_harq_vs_fb == 1)
     
     % HARQ vd FB params
-    targetCodeRate = 0.9;
+    targetCodeRate = targetCodeRate_harq_vs_fb;
     SNRdB_low = -5;
     SNRdB_high = 1;
     SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
     num_SNRdB = length(SNRdB_vec);
-    % use either estimate or opt values from LUT
-    err_thr_ada_scheme = "est";
 
     % generate estimates for err_thr
+    err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
     if (err_thr_ada_scheme == "est")
         data = load(harq_lut_path);
-        err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
         for i_rr = 1:size(err_thr_ada_list_est,1)
             remRounds = i_rr;
             for i_ada = 1:size(SNRdB_vec,2)
@@ -308,13 +316,18 @@ if (gen_harq_vs_fb == 1)
     % set the figure properties for BLER plots
     f = figure('Renderer','painters','Position',[1000 400 800 500]);
     
-    semilogy(SNRdB_vec,squeeze(err_data_harq(2,end,:)));
+    semilogy(SNRdB_vec,squeeze(err_data_harq(2,end,:)),'b-o');
     hold on;
-     semilogy(SNRdB_vec,squeeze(err_data_fb(2,end,:)));
+    semilogy(SNRdB_vec,squeeze(err_data_fb(2,end,:)),'r-d');
     xlabel('SNR');
     ylabel('BLER');
-    legend("HARQ","FB");
-    title_str = sprintf('HARQ vs FB scheme opt. err thr : BLER LDPC %d Rate %.3f max.rounds %d',N,R, max_rounds);
+
+    fs = 12;
+    leg_HARQ = sprintf('BLER Chase HARQ Rate %.3f, max. %d rounds',R, max_rounds);
+    leg_FB = sprintf('BLER Chase FB Rate %.3f, max. %d rounds',R, max_rounds);
+    legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
+
+    title_str = sprintf('HARQ Chase vs FB Chase scheme, err thr from grid search : BLER LDPC %d Rate %.3f max.rounds %d',N,R, max_rounds);
     title(title_str);
     bler_common_str = [res_folder sprintf('/BLER_HARQ_vs_FB_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_ada_max_rounds_%d_qm_%d_ma_%d_numF_%d_',N,R, max_iter, max_rounds, qam_mod, mod_approx, nFrames)];
     filename_BLER_fig = bler_common_str + ".fig";
@@ -341,7 +354,6 @@ if (gen_harq_vs_fb == 1)
     savefig(filename_BLER_fig);
     saveas(f,filename_BLER_png);
 end
-
 
 % Terminate parpool
 if (parpool_size ~= 8 && parpool_size ~= 10)
