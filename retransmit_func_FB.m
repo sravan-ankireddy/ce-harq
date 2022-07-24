@@ -1,9 +1,9 @@
-function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,N,K,R,data,txSig,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed)
+function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,NREPerPRB,N,K,R,data,rxLLR_dsc_rr,ncb,Nref,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed)
     
     rng(seed);
     Avg_rounds_FB = 0;
-    rxLLR_HARQ_chase = rxLLR;
-    rxLLR_FB_chase = [];
+    rxLLR_dsc_rr_HARQ_buffer = rxLLR_dsc_rr;
+    rxLLR_FB_dsc_rr_buffer = [];
     data_est_FB = data_est;
     data_est_FB_prev = data_est;
     decision_switch = 0;
@@ -13,6 +13,7 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
     num_err_vec(1) = num_err;
 
     for i_r = 1:max_rounds-1
+
         num_err_FB = sum(data ~= double(data_est_FB));
         err_per = num_err_FB/K;
 
@@ -25,7 +26,7 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
         % Within the FB scheme, you can choose FB/HARQ based on error
         % vector
         if (decision_switch == 0)
-            if (err_per <= err_thr && err_thr > 0)
+            if (err_per <= err_thr)
                 % Also check if the error is compressible
                 data_est_err_temp = mod(data+double(data_est_FB),2);
                 err_seq_temp = arithenco(data_est_err_temp+1,counts);
@@ -43,6 +44,8 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
         % Update the counter
         Avg_rounds_FB = Avg_rounds_FB + 1; 
         if (fb_scheme == "FB")
+            % FIX ME : use IR for inner scheme as well
+            rv = 0; 
             % Compress the error assuming free feedback
             data_est_err = mod(data+double(data_est_FB),2);
 
@@ -58,7 +61,7 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
             else
                 inner_scheme = "FB";
                 % Empty the chase buffer if prev round reduced the errors
-                rxLLR_FB_chase = [];
+                rxLLR_FB_dsc_rr_buffer = [];
             end
 
             if (inner_scheme == "FB")
@@ -119,19 +122,22 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
                 rxLLR_FB = 1 - 2*double(nrSymbolDemodulate(rxSig_FB,modulation,'DecisionType','hard'));
             end
 
-            % Store for chase combining
-            rxLLR_FB_chase = [rxLLR_FB_chase rxLLR_FB];
-            rxLLR_FB = sum(rxLLR_FB_chase, 2);
-
             % Descrambling, inverse of TS 38.211 Section 7.3.1.1
             opts.MappingType = 'signed';
             opts.OutputDataType = 'double';
             nid = 1; rnti = 1; cwi = 1;
             dsc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(rxLLR_FB),opts);
             rxLLR_FB_dsc = rxLLR_FB .* dsc_seq;
-        
-            % Decoding and Rate recovery
-            [err_seq_est, crc_chk_FB]  = nrldpc_dec(rxLLR_FB_dsc, R_err, modulation, K_err, max_iter, rv, nlayers, bgn_err);
+
+            % Rate recovery
+            rxLLR_FB_dsc_rr = nrRateRecoverLDPC(rxLLR_FB_dsc, K_err, R_err, rv, modulation, nlayers, ncb, Nref);
+
+            % Combining
+            rxLLR_FB_dsc_rr_buffer = [rxLLR_FB_dsc_rr_buffer rxLLR_FB_dsc_rr];
+            rxLLR_FB_dsc_rr = sum(rxLLR_FB_dsc_rr_buffer, 2);
+
+            % Decoding
+            [err_seq_est, crc_chk_FB]  = nrldpc_dec(rxLLR_FB_dsc_rr, K_err, max_iter, bgn_err);
 
             % Decompress
             err_deseq_est = arithdeco(double(err_seq_est),counts,length(data))-1;
@@ -154,6 +160,28 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
             end
         else
             % Retransmit
+            % redundancy version for current round
+            rv = rvSeq(i_r+1);
+            % generate new tx data with new rv
+            bgn = bgn_select(K,R);
+            dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
+            
+            % Scrambling, TS 38.211 Section 7.3.1.1
+            nid = 1; rnti = 1; cwi = 1;
+            sc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(dataIn));
+            dataIn_sc = xor(dataIn,sc_seq);
+    
+            % Symbol Modulation
+            if (qam_mod == 1)
+                % Reshape data into binary k-tuples, k = log2(M), and convert to
+                % integers
+                txData = reshape(dataIn_sc,length(dataIn)/M,M);
+                txDataSym = bi2de(txData);
+                txSig = qammod(txDataSym,2^M,'bin','UnitAveragePower',1);
+            else
+                txSig = nrSymbolModulate(dataIn_sc,modulation);
+            end
+
             newRxSig = awgn(txSig,SNRdB);
 
             % Symbol demod
@@ -164,21 +192,24 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREP
                 newRxLLR_HARQ = 1 - 2*double(nrSymbolDemodulate(newRxSig,modulation,'DecisionType','hard'));
             end
             
-            % Chase combining
-            rxLLR_HARQ_chase = [rxLLR_HARQ_chase newRxLLR_HARQ];
-            rxLLR_HARQ = sum(rxLLR_HARQ_chase,2);
-
             % Descrambling, inverse of TS 38.211 Section 7.3.1.1
             opts.MappingType = 'signed';
             opts.OutputDataType = 'double';
             nid = 1; rnti = 1; cwi = 1;
-            dsc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(rxLLR_HARQ),opts);
-            rxLLR_FB_HARQ_dsc = rxLLR_HARQ .* dsc_seq;
-                    
-            % Decoding and Rate recovery
+            dsc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(newRxLLR_HARQ),opts);
+            newRxLLR_HARQ_dsc = newRxLLR_HARQ .* dsc_seq;
+
+            % Rate recovery
+            newRxLLR_HARQ_dsc_rr = nrRateRecoverLDPC(newRxLLR_HARQ_dsc, K, R, rv, modulation, nlayers, ncb, Nref);
+            
+            % Combining
+            rxLLR_dsc_rr_HARQ_buffer = [rxLLR_dsc_rr_HARQ_buffer newRxLLR_HARQ_dsc_rr];
+            rxLLR_FB_HARQ_dsc_rr = sum(rxLLR_dsc_rr_HARQ_buffer,2);
+            
+            % Decoding
             bgn = bgn_select(K,R);
-            [data_est_FB, crc_chk_FB_HARQ] = nrldpc_dec(rxLLR_FB_HARQ_dsc, R, modulation, K, max_iter, rv, nlayers, bgn);
-    
+            [data_est_FB, crc_chk_FB_HARQ] = nrldpc_dec(rxLLR_FB_HARQ_dsc_rr, K, max_iter, bgn);
+     
             % Check for errors : post descrambling
             num_err_FB = sum(mod(data+double(data_est_FB),2));
 

@@ -21,6 +21,12 @@ function [bler_out, ar_out, snr_out] = process_bler_data(data)
 
         bler_out.err_thr_opt(is) = err_thr_list(min_ind);
         bler_out.bler_opt(is) = bler_data(min_ind,is);
+
+        % fallback : when expected bler is very less, skip FB and fallback to HARQ
+        % This increases Avg. rounds but for now, stay cautious 
+        % if (bler_out.bler_opt(is) < 1e-3)
+        %     bler_out.err_thr_opt(is) = err_thr_list(1);
+        % end
     end
 
     % get the ar_data

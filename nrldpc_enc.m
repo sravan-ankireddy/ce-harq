@@ -4,6 +4,7 @@ function [output] = nrldpc_enc(data_in, rate, modulation, rv, bgn, nlayers)
     cbsIn = nrCodeBlockSegmentLDPC(tbIn, bgn);
     enc = nrLDPCEncode(cbsIn, bgn);
     outlen = ceil(length(data_in)/rate);
-    output = nrRateMatchLDPC(enc,outlen,rv,modulation,nlayers);
+    Nref = 25344;
+    output = nrRateMatchLDPC(enc,outlen,rv,modulation,nlayers,Nref);
     output = double(output);
 end

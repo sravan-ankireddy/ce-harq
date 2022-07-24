@@ -1,5 +1,5 @@
 clear; close all; clc;
-noTransportBlocks = 10e3;
+noTransportBlocks = 10e2;
 SNRdB_vec = -10:0.2:0; % SNR in dB
 BLER = zeros(2,length(SNRdB_vec));
 noNewBlocks = zeros(2,length(SNRdB_vec));
@@ -7,7 +7,7 @@ targetCodeRate = 0.9;
 rvSeq_IR = [0 2 3 1 0 2 3 1 0 2];
 rvSeq_Chase = zeros(size(rvSeq_IR));
 res_folder = "ref_curves";
-
+tic;
 parpool_size = min(64,feature('numcores'));
 if (parpool_size ~= 8 && parpool_size ~= 10)
     parpool(parpool_size);
@@ -15,8 +15,6 @@ end
 rvSeq = rvSeq_IR;
 codeLen = -1*zeros(size(SNRdB_vec));
 codeRate = -1*zeros(size(SNRdB_vec));
-
-tic;
 for j = 1:2
     if (j == 1) % Chase
         rvSeq = rvSeq_Chase;
@@ -110,8 +108,7 @@ for j = 1:2
             decodeDLSCH.TransportBlockLength = trBlkSizes;
             [decbits,blkerr] = decodeDLSCH(rxLLR,pdsch.Modulation,pdsch.NumLayers, ...
                 harqEntity.RedundancyVersion,harqEntity.HARQProcessID);
-        
-            
+
             % Store values to calculate throughput (only for active transport blocks)
             if(any(trBlkSizes ~= 0))
                 numRxBits = [numRxBits trBlkSizes.*(1-blkerr)];
@@ -164,6 +161,6 @@ savefig(fig_name);
 png_name = sprintf('ref_curves/IRvsChase_BLER_LDPC_%d_HARQ_%d_numF_%d.png',codeLen(end),max_rounds,noTransportBlocks);
 saveas(f,png_name);
 
-if (parpool_size ~= 8)
+if (parpool_size ~= 8 || parpool_size ~= 10)
     delete(gcp('nocreate'));
 end

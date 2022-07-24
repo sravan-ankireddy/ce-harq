@@ -40,7 +40,7 @@ R = K/N;
 % base graph selection based on rate and K
 bgn = bgn_select(K,R);
 
-rv = 0;
+rv = rvSeq(1);
 
 % Error Stats
 BER_vec_HARQ = zeros(1,num_SNRdB);
@@ -139,9 +139,11 @@ for i_s = 1:length(SNRdB_vec)
         dsc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(rxLLR),opts);
         rxLLR_dsc = rxLLR .* dsc_seq;
                 
-        % Decoding and Rate recovery
+        % Rate recovery
+        rxLLR_dsc_rr = nrRateRecoverLDPC(rxLLR_dsc, K, R, rv, modulation, nlayers, ncb, Nref);
+        % Decoding 
         bgn = bgn_select(K,R);
-        [data_est, crc_chk] = nrldpc_dec(rxLLR_dsc, R, modulation, K, max_iter, rv, nlayers, bgn);
+        [data_est, crc_chk] = nrldpc_dec(rxLLR_dsc_rr, K, max_iter, bgn);
 
         % Check for error stats
         num_err = sum(mod(data+double(data_est),2));
@@ -151,7 +153,7 @@ for i_s = 1:length(SNRdB_vec)
         
         % Start retransmission if 1st round failed
         if (crc_chk > 0 && max_rounds > 1)
-            out = retransmit_func_HARQ(SNRdB,modulation,max_iter,rv,nlayers,K,R,data,txSig,rxLLR,err_thr,num_err,max_rounds,mod_approx,seed);
+            out = retransmit_func_HARQ(SNRdB,modulation,max_iter,rvSeq,nlayers,K,R,data,rxLLR_dsc_rr,ncb,Nref,err_thr,num_err,max_rounds,qam_mod,mod_approx,seed);
             num_ar_HARQ = num_ar_HARQ + out.Avg_rounds_HARQ;
             num_err_HARQ = out.num_err_HARQ;
             num_err_HARQ_per_round = out.num_err_vec;

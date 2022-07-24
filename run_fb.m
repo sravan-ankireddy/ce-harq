@@ -41,7 +41,7 @@ R = K/N;
 % base graph selection based on rate and K
 bgn = bgn_select(K,R);
 
-rv = 0;
+rv = rvSeq(1);
 
 % Error Stats
 BER_vec_FB = zeros(1,num_SNRdB);
@@ -139,10 +139,12 @@ for i_s = 1:length(SNRdB_vec)
         % Descrambling, inverse of TS 38.211 Section 7.3.1.1
         dsc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(rxLLR),opts);
         rxLLR_dsc = rxLLR .* dsc_seq;
-                
-        % Decoding and Rate recovery
+
+        % Rate recovery
+        rxLLR_dsc_rr = nrRateRecoverLDPC(rxLLR_dsc, K, R, rv, modulation, nlayers, ncb, Nref);
+        % Decoding
         bgn = bgn_select(K,R);
-        [data_est, crc_chk] = nrldpc_dec(rxLLR_dsc, R, modulation, K, max_iter, rv, nlayers, bgn);
+        [data_est, crc_chk] = nrldpc_dec(rxLLR_dsc_rr, K, max_iter, bgn);
 
         % Check for error stats
         num_err = sum(mod(data+double(data_est),2));
@@ -152,7 +154,7 @@ for i_s = 1:length(SNRdB_vec)
         
         % Start retransmission if 1st round failed
         if (crc_chk > 0 && max_rounds > 1)
-            out = retransmit_func_FB(SNRdB,modulation,max_iter,rv,nlayers,nPRB,NREPerPRB,N,K,R,data,txSig,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed);
+            out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,NREPerPRB,N,K,R,data,rxLLR_dsc_rr,ncb,Nref,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed);
             num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
             num_err_FB = out.num_err_FB;
             num_err_FB_per_round = out.num_err_vec;

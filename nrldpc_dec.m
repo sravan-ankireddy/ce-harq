@@ -1,8 +1,6 @@
-function [output, crc] = nrldpc_dec(chOut, rate, modulation, block_len, max_iter, rv, nlayers, bgn)
+function [output, crc] = nrldpc_dec(raterec, block_len, max_iter, bgn)
+
     CRC_L = 16;
-
-    raterec = nrRateRecoverLDPC(chOut, block_len, rate, rv, modulation, nlayers);
-
     decBits = nrLDPCDecode(raterec, bgn, max_iter, 'Algorithm','Normalized min-sum');
 
     % Code block desegmentation and CRC decoding

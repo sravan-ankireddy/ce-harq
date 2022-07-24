@@ -2,12 +2,13 @@ close all; clear all; clc;
 
 global_settings = 1;
 
-unit_test = 0;
+unit_test = 1;
 
 % run params
-gen_err_thr_harq = 0;
-gen_err_thr_fb = 0;
-gen_harq_vs_fb = 1;
+gen_err_thr_harq = 1;
+gen_err_thr_fb = 1;
+gen_harq_vs_fb = 0;
+
 % use either estimate or opt values from LUT
 err_thr_ada_scheme = "opt";
 targetCodeRate_harq_vs_fb = 0.9;
@@ -32,6 +33,9 @@ else
 end
 
 % constant settings
+% FIX ME
+ncb = 1;
+Nref = 25344;
 nPRB = 20;
 max_iter = 6;
 mod_approx = 0;
@@ -49,9 +53,41 @@ SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 num_SNRdB = length(SNRdB_vec);
 
+% Choose the combining scheme 
+combining_scheme = "IR";
+if (combining_scheme == "IR")
+    rvSeq = [0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1];
+    rvSeq = rvSeq(1:max_rounds);
+else
+    rvSeq = zeros(1,max_rounds);
+end
+if (combining_scheme == "IR")
+    % path to results folder
+    res_folder_harq = sprintf('bler_data_ir/harq/%d',nFrames);
+    res_folder_fb = sprintf('bler_data_ir/fb/%d',nFrames);
+    if (err_thr_ada_scheme == "est")
+        res_folder_harq_vs_fb = sprintf('bler_data_ir/harq_vs_fb_est/%d',nFrames);
+    else
+        res_folder_harq_vs_fb = sprintf('bler_data_ir/harq_vs_fb_opt/%d',nFrames);
+    end
+else
+    % path to results folder
+    res_folder_harq = sprintf('bler_data_cc/harq/%d',nFrames);
+    res_folder_fb = sprintf('bler_data_cc/fb/%d',nFrames);
+    if (err_thr_ada_scheme == "est")
+        res_folder_harq_vs_fb = sprintf('bler_data_cc/harq_vs_fb_est/%d',nFrames);
+    else
+        res_folder_harq_vs_fb = sprintf('bler_data_cc/harq_vs_fb_opt/%d',nFrames);
+    end
+end
 if (unit_test)
-    nFrames = 40e1;
-    targetCodeRate_list = 0.05:0.05:0.1;
+    SNRdB_low = -10;
+    SNRdB_high = 0;
+    SNRdB_step = 1;
+    SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
+    num_SNRdB = length(SNRdB_vec);
+    nFrames = 50e1;
+    targetCodeRate_list = 0.9;%0.05:0.05:0.1;
     actualCodeRate_list = zeros(size(targetCodeRate_list));
 end
 % Store full error data : 2xtargetCodeRate_listxmax_roundsxnum_SNR
@@ -69,7 +105,7 @@ end
 snr_data = SNRdB_vec;
 
 if (gen_err_thr_harq == 1)
-    res_folder = sprintf('bler_data/harq/%d',nFrames);
+    res_folder = res_folder_harq;
 
     if ~exist(res_folder,'dir')
         mkdir(res_folder);
@@ -142,11 +178,17 @@ end
 if (gen_err_thr_fb == 1)
 
     % FB params
-    targetCodeRate = 0.8;
-    res_folder = sprintf('bler_data/fb/%d',nFrames);
-    err_thr_list = 0:0.005:0.2;
-    SNRdB_low = -6;
-    SNRdB_high =-1;
+    targetCodeRate = 0.9;
+    res_folder = res_folder_fb;
+    err_thr_list = 0.05:0.05:0.2;
+    if (combining_scheme == "IR")
+        SNRdB_low = -8;
+        SNRdB_high =-4;
+    else
+        SNRdB_low = -6;
+        SNRdB_high =-1;
+    end
+
     SNRdB_step = 0.2;
     SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
     num_SNRdB = length(SNRdB_vec);
@@ -168,12 +210,9 @@ if (gen_err_thr_fb == 1)
     % Store full error data : 2xerr_thr_listxmax_roundsxnum_SNR
     err_data_all_thr = zeros(2,length(err_thr_list),max_rounds,num_SNRdB);
 
-    % init. estimates for err_thr
-    err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
-
     % Store Avg. rounds data : err_thr_listxnum_SNR
     ar_data_all_thr = zeros(length(err_thr_list),num_SNRdB);
-    
+    err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
     for i_e = 1:length(err_thr_list)
         err_thr = err_thr_list(i_e);
         err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
@@ -233,6 +272,11 @@ end
 
 %% HARQ vs FB with opt. err_thr
 if (gen_harq_vs_fb == 1)
+
+    res_folder = res_folder_harq_vs_fb;
+    if ~exist(res_folder,'dir')
+        mkdir(res_folder);
+    end
     
     % HARQ vd FB params
     targetCodeRate = targetCodeRate_harq_vs_fb;
@@ -253,19 +297,6 @@ if (gen_harq_vs_fb == 1)
         end
     end
 
-    if (err_thr_ada_scheme == "est")
-        res_folder = sprintf('bler_data/harq_vs_fb_est/%d',nFrames);
-
-        if ~exist(res_folder,'dir')
-            mkdir(res_folder);
-        end
-    else
-        res_folder = sprintf('bler_data/harq_vs_fb/%d',nFrames);
-
-        if ~exist(res_folder,'dir')
-            mkdir(res_folder);
-        end
-    end
 
     % look up opt err_thr per SNR
     data = load(err_thr_lut_path);
@@ -316,18 +347,13 @@ if (gen_harq_vs_fb == 1)
     % set the figure properties for BLER plots
     f = figure('Renderer','painters','Position',[1000 400 800 500]);
     
-    semilogy(SNRdB_vec,squeeze(err_data_harq(2,end,:)),'b-o');
+    semilogy(SNRdB_vec,squeeze(err_data_harq(2,end,:)));
     hold on;
-    semilogy(SNRdB_vec,squeeze(err_data_fb(2,end,:)),'r-d');
+     semilogy(SNRdB_vec,squeeze(err_data_fb(2,end,:)));
     xlabel('SNR');
     ylabel('BLER');
-
-    fs = 12;
-    leg_HARQ = sprintf('BLER Chase HARQ Rate %.3f, max. %d rounds',R, max_rounds);
-    leg_FB = sprintf('BLER Chase FB Rate %.3f, max. %d rounds',R, max_rounds);
-    legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
-
-    title_str = sprintf('HARQ Chase vs FB Chase scheme, err thr from grid search : BLER LDPC %d Rate %.3f max.rounds %d',N,R, max_rounds);
+    legend("HARQ","FB");
+    title_str = sprintf('HARQ vs FB scheme opt. err thr : BLER LDPC %d Rate %.3f max.rounds %d',N,R, max_rounds);
     title(title_str);
     bler_common_str = [res_folder sprintf('/BLER_HARQ_vs_FB_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_ada_max_rounds_%d_qm_%d_ma_%d_numF_%d_',N,R, max_iter, max_rounds, qam_mod, mod_approx, nFrames)];
     filename_BLER_fig = bler_common_str + ".fig";
@@ -354,6 +380,7 @@ if (gen_harq_vs_fb == 1)
     savefig(filename_BLER_fig);
     saveas(f,filename_BLER_png);
 end
+
 
 % Terminate parpool
 if (parpool_size ~= 8 && parpool_size ~= 10)
