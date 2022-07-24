@@ -26,7 +26,7 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
         % Within the FB scheme, you can choose FB/HARQ based on error
         % vector
         if (decision_switch == 0)
-            if (err_per <= err_thr)
+            if (err_per <= err_thr && err_thr > 0)
                 % Also check if the error is compressible
                 data_est_err_temp = mod(data+double(data_est_FB),2);
                 err_seq_temp = arithenco(data_est_err_temp+1,counts);

@@ -2,10 +2,10 @@ close all; clear all; clc;
 
 global_settings = 1;
 
-unit_test = 1;
+unit_test = 0;
 
 % run params
-gen_err_thr_harq = 1;
+gen_err_thr_harq = 0;
 gen_err_thr_fb = 1;
 gen_harq_vs_fb = 0;
 
@@ -53,6 +53,17 @@ SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 num_SNRdB = length(SNRdB_vec);
 
+if (unit_test)
+    SNRdB_low = -20;
+    SNRdB_high = 10;
+    SNRdB_step = 0.2;
+    SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
+    num_SNRdB = length(SNRdB_vec);
+    nFrames = 10e2;
+    targetCodeRate_list = 0.9;%0.05:0.05:0.1;
+    actualCodeRate_list = zeros(size(targetCodeRate_list));
+end
+
 % Choose the combining scheme 
 combining_scheme = "IR";
 if (combining_scheme == "IR")
@@ -80,16 +91,7 @@ else
         res_folder_harq_vs_fb = sprintf('bler_data_cc/harq_vs_fb_opt/%d',nFrames);
     end
 end
-if (unit_test)
-    SNRdB_low = -10;
-    SNRdB_high = 0;
-    SNRdB_step = 1;
-    SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
-    num_SNRdB = length(SNRdB_vec);
-    nFrames = 50e1;
-    targetCodeRate_list = 0.9;%0.05:0.05:0.1;
-    actualCodeRate_list = zeros(size(targetCodeRate_list));
-end
+
 % Store full error data : 2xtargetCodeRate_listxmax_roundsxnum_SNR
 err_data_all_rates = zeros(2,length(targetCodeRate_list),max_rounds,num_SNRdB);
 
@@ -180,7 +182,7 @@ if (gen_err_thr_fb == 1)
     % FB params
     targetCodeRate = 0.9;
     res_folder = res_folder_fb;
-    err_thr_list = 0.05:0.05:0.2;
+    err_thr_list = 0.00:0.005:0.2;
     if (combining_scheme == "IR")
         SNRdB_low = -8;
         SNRdB_high =-4;
