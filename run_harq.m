@@ -6,6 +6,9 @@ if ~exist('global_settings','var')
     % Code parameters
     targetCodeRate = 0.8;
     nPRB = 20; % Vary this to change the code length
+    nlayers = 1;
+    NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
+    N = nPRB*NREPerPRB;
     max_iter = 6; % default is 8 in MATLAB
     min_ber = 1e-5;
     SNRdB_low = -8;
@@ -26,15 +29,12 @@ if ~exist('global_settings','var')
     process_data_harq = 0;
 end
 
-% use nrTBS to get K,N
-nlayers = 1;
-NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
+% use nrTBS to get K,R
 tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate);
 
 % Use generated code params
 M = bits_per_symbol(modulation);
 K = tbs/M;
-N = nPRB*NREPerPRB;
 R = K/N;
 
 % base graph selection based on rate and K

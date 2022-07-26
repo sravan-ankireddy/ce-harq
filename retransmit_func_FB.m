@@ -43,9 +43,8 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
 
         % Update the counter
         Avg_rounds_FB = Avg_rounds_FB + 1; 
+        rvSeq_ind = 1;
         if (fb_scheme == "FB")
-            % FIX ME : use IR for inner scheme as well
-            rv = 0; 
             % Compress the error assuming free feedback
             data_est_err = mod(data+double(data_est_FB),2);
 
@@ -62,7 +61,11 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
                 inner_scheme = "FB";
                 % Empty the chase buffer if prev round reduced the errors
                 rxLLR_FB_dsc_rr_buffer = [];
+                % Reset rvSeq start
+                rvSeq_ind = 1;
             end
+            % Use IR for inner scheme as well
+            rv = rvSeq(rvSeq_ind); 
 
             if (inner_scheme == "FB")
 
@@ -110,6 +113,25 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
                 % Pass through AWGN channel
                 rxSig_FB = awgn(txSig_FB,SNRdB);
             else
+                 % Encoding and Rate matching using new RV
+                 errDataInSeq = nrldpc_enc(err_seq_n, R_err, modulation, rv, bgn_err, nlayers);
+
+                 % Scrambling, TS 38.211 Section 7.3.1.1
+                 nid = 1; rnti = 1; cwi = 1;
+                 sc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(errDataInSeq));
+                 errDataInSeq_sc = xor(errDataInSeq,sc_seq);
+ 
+                 % Symbol Modulation
+                 if (qam_mod == 1)
+                     % Reshape data into binary k-tuples, k = log2(M), and convert to
+                     % integers
+                     txData = reshape(errDataInSeq_sc,length(dataIn)/M,M);
+                     txDataSym = bi2de(txData);
+                     txSig_FB = qammod(txDataSym,2^M,'bin','UnitAveragePower',1);
+                 else
+                     txSig_FB = nrSymbolModulate(errDataInSeq_sc,modulation);
+                 end
+
                 % Retransmit through AWGN channel
                 rxSig_FB = awgn(txSig_FB,SNRdB);
             end
@@ -153,7 +175,9 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
             
             % update err count
             num_err_vec(i_r+1) = num_err_FB;
-
+            
+            rvSeq_ind = rvSeq_ind + 1;
+            
             % Break if crc passes
             if (crc_chk_FB == 0)
                 break;
