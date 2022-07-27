@@ -201,7 +201,7 @@ if (process_data_fb == 1)
     ylabel('BLER','FontSize',fs);
     
     codeRate = R;
-    leg_FB = sprintf('BLER FB-%s Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+    leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     
     legend(leg_FB, 'Location','southwest','FontSize',fs);
     
