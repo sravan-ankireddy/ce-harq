@@ -201,11 +201,11 @@ if (process_data_fb == 1)
     ylabel('BLER','FontSize',fs);
     
     codeRate = R;
-    leg_FB = sprintf('BLER FB Rate %.3f, max. %d rounds',codeRate, max_rounds);
+    leg_FB = sprintf('BLER FB-%s Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     
     legend(leg_FB, 'Location','southwest','FontSize',fs);
     
-    title_name = sprintf('FB : LDPC %d, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d',N,R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
+    title_name = sprintf('FB-%s : BLER LDPC %d, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d',combining_scheme, N,R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
     title(title_name,'FontSize',fs);
     
     common_str = res_folder_all + sprintf('/BLER_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_max_rounds_%d_qm_%d_ma_%d', N,R, max_iter, err_thr, max_rounds,qam_mod, mod_approx);
@@ -226,10 +226,10 @@ if (process_data_fb == 1)
     xlabel('SNR','FontSize',fs);
     ylabel('Avg. rounds','FontSize',fs);
     
-    leg_FB = sprintf('AR FB Rate %.3f, max. %d rounds',codeRate, max_rounds);
+    leg_FB = sprintf('FB-%s AR Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     legend(leg_FB, 'Location','southwest','FontSize',fs);
     
-    title_name = sprintf('FB : LDPC %d, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d',N,R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
+    title_name = sprintf('FB-%s : AR LDPC %d, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d', combining_scheme, N,R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
     title(title_name,'FontSize',fs);
     
     common_str = res_folder_all + sprintf('/AR_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_max_rounds_%d_qm_%d_ma_%d', N,R, max_iter, err_thr, max_rounds,qam_mod, mod_approx);
