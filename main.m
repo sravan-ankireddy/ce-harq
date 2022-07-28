@@ -8,8 +8,13 @@ global_settings = 1;
 unit_test = 0;
 
 % run params
-run_er_thr_grid_search = 1;
+run_er_thr_grid_search = 0;
+rerun_harq_opt = 1;
+if run_er_thr_grid_search
+    rerun_harq_opt = 0;
+end
 rerun_fb_opt = 1;
+
 % generate acomp LUT
 acomp_lut_path = "lut_data/acomp_960_ns_100000.mat";
 if ~isfile(acomp_lut_path)
@@ -25,7 +30,7 @@ err_thr_ada_scheme = "opt";
 targetCodeRate = 0.9;
 
 % PRB settings
-nPRB = 20; % Vary this to change the code length
+nPRB = 22; % Vary this to change the code length
 nlayers = 1;
 NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 
@@ -35,20 +40,30 @@ N = nPRB*NREPerPRB;
 % FIX ME
 ncb = 1;
 Nref = 25344;
-max_iter = 3; % default is 8 in MATLAB
+
+max_iter = 6; % default is 8 in MATLAB
+max_rounds = 10;
+nFrames = 100e5;
+nFrames_LUT = nFrames;
+if ~run_er_thr_grid_search
+    nFrames_LUT = 20e4;
+end
+
+nMiniFrames = 10e2;
+nOut = nFrames/nMiniFrames;
+min_err = 1000; % run till atleast 100 block errors or nFrames
+min_blocks = nFrames; %10e3; %disabling the feature for now
+min_bler = 1e-4; % URLLC requirement 1e-5
+modulation = '16QAM';
 mod_approx = 0;
 qam_mod = 0;
-max_rounds = 10;
-nFrames = 10e1;
-min_bler = 1e-4; % URLLC requirement 1e-5
-modulation = 'QPSK';
 
 % use nrTBS to get K,R
 tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate);
 
 % Use generated code params
 M = bits_per_symbol(modulation);
-K = tbs/M;
+K = round(tbs/M);
 R = K/N;
 
 % Choose the combining scheme 
@@ -67,18 +82,25 @@ else
     res_folder_prefix = 'bler_data_cc';
 end
 
-res_folder_fb = [res_folder_prefix sprintf('/%d/fb/%d',N,nFrames)];
+res_folder_fb = [res_folder_prefix sprintf('/%d/fb/%s/%d',N,modulation,nFrames)];
+res_folder_fb_gs = [res_folder_prefix sprintf('/%d/fb/%s/%d',N,modulation,nFrames_LUT)];
 if (err_thr_ada_scheme == "est")
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_est/%d',N,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_est/%s/%d',N,modulation,nFrames)];
 else
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_opt/%d',N,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_opt/%s/%d',N,modulation,nFrames)];
 end
 
 % FB params
 res_folder = res_folder_fb;
-err_thr_list = 0.00:0.005:0.05;
-SNRdB_low = -6;
-SNRdB_high =-2;
+err_thr_list = 0.000:0.005:0.025;
+if (modulation == "16QAM")
+    SNRdB_low = 0;
+    SNRdB_high = 0.8;
+else
+    SNRdB_low = -6;
+    SNRdB_high = -4;
+end
+
 if (max_rounds == 5 && max_iter == 3)
     SNRdB_low = -2;
     SNRdB_high =2;
@@ -102,7 +124,7 @@ if (combining_scheme == "CC")
     SNRdB_high = SNRdB_high + 3;
 end
 
-SNRdB_step = 0.2;
+SNRdB_step = 0.1;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 num_SNRdB = length(SNRdB_vec);
 snr_data = SNRdB_vec;
@@ -169,7 +191,7 @@ if (run_er_thr_grid_search == 1)
     xlabel('SNR');
     ylabel('BLER');
     legend(leg_str);
-    title_str = sprintf('FB-%s scheme : BLER LDPC %d Rate %.3f max. iter %d max.rounds %d',combining_scheme, N,R, max_iter, max_rounds);
+    title_str = sprintf('FB-%s scheme : BLER LDPC %d mod. %s Rate %.3f max. iter %d max.rounds %d',combining_scheme, N, modulation, R, max_iter, max_rounds);
     title(title_str);
     bler_common_str = [res_folder sprintf('/FB_BLER_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_to_%.3f_max_rounds_%d_qm_%d_ma_%d_numF_%d',N,R, max_iter, err_thr_list(1), err_thr_list(end), max_rounds, qam_mod, mod_approx, nFrames)];
     filename_BLER_fig = bler_common_str + ".fig";
@@ -190,7 +212,7 @@ if (run_er_thr_grid_search == 1)
     xlabel('SNR');
     ylabel('Avg. rounds');
     legend(leg_str);
-    title_str = sprintf('FB-%s scheme : AR LDPC %d Rate %.3f max. iter %d max. rounds %d',combining_scheme, N,R, max_iter, max_rounds);
+    title_str = sprintf('FB-%s scheme : AR LDPC %d mod. %s Rate %.3f max. iter %d max. rounds %d',combining_scheme, N, modulation, R, max_iter, max_rounds);
     title(title_str);
     ar_common_str = [res_folder sprintf('/FB_AR_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_to_%.3f_max_rounds_%d_qm_%d_ma_%d_numF_%d',N,R, max_iter, err_thr_list(1), err_thr_list(end), max_rounds, qam_mod, mod_approx, nFrames)];
     filename_AR_fig = ar_common_str + ".fig";
@@ -204,7 +226,7 @@ end
 
 % path to gris_search data
 actualRate = R;
-gs_data_path = [res_folder_fb sprintf('/fb_lut_data_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_to_%.3f_max_rounds_%d_qm_0_ma_0_numF_%d.mat',N,actualRate,max_iter,err_thr_list(1),err_thr_list(end),max_rounds,nFrames)];
+gs_data_path = [res_folder_fb_gs sprintf('/fb_lut_data_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_to_%.3f_max_rounds_%d_qm_0_ma_0_numF_%d.mat',N,actualRate,max_iter,err_thr_list(1),err_thr_list(end),max_rounds,nFrames_LUT)];
 
 res_folder = res_folder_harq_vs_fb;
 if ~exist(res_folder,'dir')
@@ -224,6 +246,8 @@ if (err_thr_ada_scheme == "est")
 end
 
 % HARQ
+
+% Rerun or read directly from prev data to save time
 % Store full error data : 2xmax_roundsxnum_SNR : first column of grid search data with err_thr = 0
 data = load(gs_data_path);
 err_data_harq = squeeze(data.err_data_all_thr(:,1,:,:));
@@ -244,6 +268,18 @@ if (snr_out(end) < SNRdB_high)
     err_thr_ada_list = [err_thr_ada_list; err_thr_ada_list(end)*ones(nz,1)];
 end
 
+if rerun_harq_opt
+    % Store full error data : 2xmax_roundsxnum_SNR
+    err_data_harq = zeros(2,max_rounds,num_SNRdB);
+
+    % call the main script
+    process_data_harq = 0;
+    run_harq;   
+    err_data_harq(1,:,:) = BER_vec_pr_HARQ;
+    err_data_harq(2,:,:) = BLER_vec_pr_HARQ;
+    ar_data_harq = Avg_rounds_HARQ;
+end
+
 % FB
 % Store full error data : 2xmax_roundsxnum_SNR
 err_data_fb = zeros(size(err_data_harq));
@@ -251,7 +287,7 @@ err_data_fb = zeros(size(err_data_harq));
 % call the main script and run new sim with opt/est err_thr
 process_data_fb = 0;
 
-% read directly from prev data to save time
+% Rerun or read directly from prev data to save time
 if rerun_fb_opt
     run_fb;
     err_data_fb(1,:,:) = BER_vec_pr_FB;
@@ -277,13 +313,13 @@ f = figure('Renderer','painters','Position',[1000 400 800 500]);
 semilogy(SNRdB_vec,squeeze(err_data_harq(2,end,:)),'b-o');
 hold on;
 semilogy(SNRdB_vec,squeeze(err_data_fb(2,end,:)),'r-d');
-fs = 14;
+fs = 12;
 xlabel('SNR','FontSize',fs);
 ylabel('BLER','FontSize',fs);
 leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds',combining_scheme, R, max_rounds);
 leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, R, max_rounds);
 legend(leg_HARQ,leg_FB, 'Location','southwest','FontSize',fs);
-title_str = sprintf('HARQ vs FB-%s scheme opt. err thr : BLER LDPC %d Rate %.3f max. iter %d max.rounds %d',combining_scheme, N, R, max_iter, max_rounds);
+title_str = sprintf('HARQ vs FB-%s scheme opt. err thr : BLER LDPC %d mod. %s Rate %.3f max. iter %d max.rounds %d',combining_scheme, N, modulation, R, max_iter, max_rounds);
 title(title_str);
 bler_common_str = [res_folder sprintf('/BLER_HARQ_vs_FB_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_ada_max_rounds_%d_qm_%d_ma_%d_numF_%d',N,R, max_iter, max_rounds, qam_mod, mod_approx, nFrames)];
 filename_BLER_fig = bler_common_str + ".fig";
@@ -304,7 +340,7 @@ ylabel('Avg. rounds','FontSize',fs);
 leg_HARQ = sprintf('HARQ-%s AR Rate %.3f, max. %d rounds',combining_scheme, R, max_rounds);
 leg_FB = sprintf('FB-%s AR Rate %.3f, max. %d rounds',combining_scheme, R, max_rounds);
 legend(leg_HARQ,leg_FB, 'Location','southwest','FontSize',fs);
-title_str = sprintf('HARQ-%s vs FB-%s scheme opt. err thr : AR LDPC %d Rate %.3f max. iter %d max.rounds %d',combining_scheme, combining_scheme, N, R, max_iter, max_rounds);
+title_str = sprintf('HARQ-%s vs FB-%s scheme opt. err thr : AR LDPC %d mod. %s Rate %.3f max. iter %d max.rounds %d',combining_scheme, combining_scheme, N, modulation, R, max_iter, max_rounds);
 title(title_str);
 bler_common_str = [res_folder sprintf('/AR_HARQ_vs_FB_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_ada_max_rounds_%d_qm_%d_ma_%d_numF_%d',N,R, max_iter, max_rounds, qam_mod, mod_approx, nFrames)];
 filename_BLER_fig = bler_common_str + ".fig";

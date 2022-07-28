@@ -81,7 +81,7 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
                 nPRB = nPRB_out.nPRB;
                 
                 M = bits_per_symbol(modulation);
-                K_err = tbs_err/M;
+                K_err = round(tbs_err/M);
                 N_err = nPRB*NREPerPRB;
                 R_err = K_err/N_err;
     

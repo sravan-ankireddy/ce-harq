@@ -63,114 +63,113 @@ for i_s = 1:length(SNRdB_vec)
     p = round(100*err_thr);
     counts = [100-p p];
 
-    BER_FB = 0; BLER_FB = 0;   
-
-    BER_FB_per_round = zeros(max_rounds,1); BLER_FB_per_round = zeros(max_rounds,1);
-
     % Print status
     fprintf('Status %0.2f %% done \n', round(i_s/num_SNRdB*100));
     
+    BER_FB = 0; BLER_FB = 0;   
+    BER_FB_per_round = zeros(max_rounds,1); BLER_FB_per_round = zeros(max_rounds,1);
     % Count the average rounds for successful decoding
     num_ar_harq = 0;
     num_ar_fb = 0;
     num_ar_fb_genie = 0;
 
-    num_ar_harq_pass = 0;
-    num_ar_fb_pass = 0;
-    num_ar_fb_fail_harq_pass = 0;
-
-    parfor i_n = 1:nFrames
-        seed = i_n;
-        % Update the counter 
-        num_ar_harq = num_ar_harq + 1; 
-        num_ar_fb = num_ar_fb + 1; 
-        num_ar_fb_genie = num_ar_fb_genie + 1;
-
-        % Generate random message
-        data = randi([0 1], K, 1);
+    for i_on = 1:nOut
     
-        % Encoding and Rate matching
-        bgn = bgn_select(K,R);
-        dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
-        
-        % Scrambling, TS 38.211 Section 7.3.1.1
-        nid = 1; rnti = 1; cwi = 1;
-        sc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(dataIn));
-        dataIn_sc = xor(dataIn,sc_seq);
+        parfor i_n = 1:nMiniFrames
+            seed = i_n;
+            % Update the counter 
+            num_ar_harq = num_ar_harq + 1; 
+            num_ar_fb = num_ar_fb + 1; 
+            num_ar_fb_genie = num_ar_fb_genie + 1;
 
-        % Symbol Modulation
-        if (qam_mod == 1)
-            % Reshape data into binary k-tuples, k = log2(M), and convert to
-            % integers
-            txData = reshape(dataIn_sc,length(dataIn)/M,M);
-            txDataSym = bi2de(txData);
-            txSig = qammod(txDataSym,2^M,'bin','UnitAveragePower',1);
-        else
-            txSig = nrSymbolModulate(dataIn_sc,modulation);
-        end
+            % Generate random message
+            data = randi([0 1], K, 1);
+        
+            % Encoding and Rate matching
+            bgn = bgn_select(K,R);
+            dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
             
-        % Pass through AWGN channel
-        rxSig = awgn(txSig,SNRdB);
+            % Scrambling, TS 38.211 Section 7.3.1.1
+            nid = 1; rnti = 1; cwi = 1;
+            sc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(dataIn));
+            dataIn_sc = xor(dataIn,sc_seq);
 
-        % Symbol demod
-        if (qam_mod == 1)
-            if (mod_approx == 0)
-                rxLLR = qamdemod(rxSig,2^M,'OutputType','approxllr');
+            % Symbol Modulation
+            if (qam_mod == 1)
+                % Reshape data into binary k-tuples, k = log2(M), and convert to
+                % integers
+                txData = reshape(dataIn_sc,length(dataIn)/M,M);
+                txDataSym = bi2de(txData);
+                txSig = qammod(txDataSym,2^M,'bin','UnitAveragePower',1);
             else
-                rxLLR = 1 - 2*double(qamdemod(rxSig,2^M,'OutputType','bit','UnitAveragePower',1));
+                txSig = nrSymbolModulate(dataIn_sc,modulation);
             end
-        else
-            if (mod_approx == 0)
-                noiseVar = 1./(10.^(SNRdB/10));
-                rxLLR = nrSymbolDemodulate(rxSig,modulation,noiseVar);
+                
+            % Pass through AWGN channel
+            rxSig = awgn(txSig,SNRdB);
+
+            % Symbol demod
+            if (qam_mod == 1)
+                if (mod_approx == 0)
+                    rxLLR = qamdemod(rxSig,2^M,'OutputType','approxllr');
+                else
+                    rxLLR = 1 - 2*double(qamdemod(rxSig,2^M,'OutputType','bit','UnitAveragePower',1));
+                end
             else
-                rxLLR = 1 - 2*double(nrSymbolDemodulate(rxSig,modulation,'DecisionType','hard'));
+                if (mod_approx == 0)
+                    noiseVar = 1./(10.^(SNRdB/10));
+                    rxLLR = nrSymbolDemodulate(rxSig,modulation,noiseVar);
+                else
+                    rxLLR = 1 - 2*double(nrSymbolDemodulate(rxSig,modulation,'DecisionType','hard'));
+                end
             end
+
+            % Descrambling, inverse of TS 38.211 Section 7.3.1.1
+            dsc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(rxLLR),opts);
+            rxLLR_dsc = rxLLR .* dsc_seq;
+
+            % Rate recovery
+            rxLLR_dsc_rr = nrRateRecoverLDPC(rxLLR_dsc, K, R, rv, modulation, nlayers, ncb, Nref);
+            % Decoding
+            bgn = bgn_select(K,R);
+            [data_est, crc_chk] = nrldpc_dec(rxLLR_dsc_rr, K, max_iter, bgn);
+
+            % Check for error stats
+            num_err = sum(mod(data+double(data_est),2));
+            num_err_FB = num_err;
+            num_err_FB_per_round = zeros(max_rounds,1);
+            num_err_FB_per_round(1) = num_err;
+            
+            % Start retransmission if 1st round failed
+            if (crc_chk > 0 && max_rounds > 1)
+                out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,NREPerPRB,N,K,R,data,rxLLR_dsc_rr,ncb,Nref,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed);
+                num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
+                num_err_FB = out.num_err_FB;
+                num_err_FB_per_round = out.num_err_vec;
+            end
+
+            BER_FB = BER_FB + num_err_FB;
+
+            BLER_FB = BLER_FB + (num_err_FB > 0);
+
+            BER_FB_per_round = BER_FB_per_round + num_err_FB_per_round;
+
+            BLER_FB_per_round = BLER_FB_per_round + (num_err_FB_per_round > 0);
         end
 
-        % Descrambling, inverse of TS 38.211 Section 7.3.1.1
-        dsc_seq = nrPDSCHPRBS(nid,rnti,cwi-1,length(rxLLR),opts);
-        rxLLR_dsc = rxLLR .* dsc_seq;
-
-        % Rate recovery
-        rxLLR_dsc_rr = nrRateRecoverLDPC(rxLLR_dsc, K, R, rv, modulation, nlayers, ncb, Nref);
-        % Decoding
-        bgn = bgn_select(K,R);
-        [data_est, crc_chk] = nrldpc_dec(rxLLR_dsc_rr, K, max_iter, bgn);
-
-        % Check for error stats
-        num_err = sum(mod(data+double(data_est),2));
-        num_err_FB = num_err;
-        num_err_FB_per_round = zeros(max_rounds,1);
-        num_err_FB_per_round(1) = num_err;
-        
-        % Start retransmission if 1st round failed
-        if (crc_chk > 0 && max_rounds > 1)
-            out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,NREPerPRB,N,K,R,data,rxLLR_dsc_rr,ncb,Nref,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,qam_mod,mod_approx,seed);
-            num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
-            num_err_FB = out.num_err_FB;
-            num_err_FB_per_round = out.num_err_vec;
+        if (BLER_FB > min_err && i_on*nMiniFrames > min_blocks)
+            break;
         end
-
-        BER_FB = BER_FB + num_err_FB;
-
-        BLER_FB = BLER_FB + (num_err_FB > 0);
-
-        BER_FB_per_round = BER_FB_per_round + num_err_FB_per_round;
-
-        BLER_FB_per_round = BLER_FB_per_round + (num_err_FB_per_round > 0);
     end
-
     % AR update
     Avg_rounds_FB(i_s) = Avg_rounds_FB(i_s) + num_ar_fb;
 
     % Error Stats
-    BER_vec_FB(:,i_s) = BER_FB/(K*nFrames);
-    BLER_vec_FB(:,i_s) = BLER_FB/(nFrames);
+    BER_vec_FB(:,i_s) = BER_FB/(K*(i_on*nMiniFrames));
+    BLER_vec_FB(:,i_s) = BLER_FB/(i_on*nMiniFrames);
 
-    BER_vec_pr_FB(:,i_s) = BER_FB_per_round/(K*nFrames);
-    BLER_vec_pr_FB(:,i_s) = BLER_FB_per_round/(nFrames);
-
+    BER_vec_pr_FB(:,i_s) = BER_FB_per_round/(K*(i_on*nMiniFrames));
+    BLER_vec_pr_FB(:,i_s) = BLER_FB_per_round/(i_on*nMiniFrames);
 end
 
 % Avg rounds per transmission
@@ -205,7 +204,7 @@ if (process_data_fb == 1)
     
     legend(leg_FB, 'Location','southwest','FontSize',fs);
     
-    title_name = sprintf('FB-%s : BLER LDPC %d, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d',combining_scheme, N,R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
+    title_name = sprintf('FB-%s : BLER LDPC %d, mod. %s, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d',combining_scheme, N, modulation, R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
     title(title_name,'FontSize',fs);
     
     common_str = res_folder_all + sprintf('/BLER_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_max_rounds_%d_qm_%d_ma_%d', N,R, max_iter, err_thr, max_rounds,qam_mod, mod_approx);
@@ -229,7 +228,7 @@ if (process_data_fb == 1)
     leg_FB = sprintf('FB-%s AR Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     legend(leg_FB, 'Location','southwest','FontSize',fs);
     
-    title_name = sprintf('FB-%s : AR LDPC %d, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d', combining_scheme, N,R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
+    title_name = sprintf('FB-%s : AR LDPC %d, mod. %s, Rate %.3f, max. iter %d, errthr %.3f, max. rounds %d qam mod %d mod app %d', combining_scheme, N, modulation, R, max_iter, err_thr, max_rounds, qam_mod, mod_approx);
     title(title_name,'FontSize',fs);
     
     common_str = res_folder_all + sprintf('/AR_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_%.3f_max_rounds_%d_qm_%d_ma_%d', N,R, max_iter, err_thr, max_rounds,qam_mod, mod_approx);

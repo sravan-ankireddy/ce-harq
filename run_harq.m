@@ -34,7 +34,7 @@ tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate);
 
 % Use generated code params
 M = bits_per_symbol(modulation);
-K = tbs/M;
+K = round(tbs/M);
 R = K/N;
 
 % base graph selection based on rate and K
