@@ -8,7 +8,7 @@ global_settings = 1;
 unit_test = 0;
 
 % run params
-run_er_thr_grid_search = 0;
+run_er_thr_grid_search = 1;
 rerun_harq_opt = 1;
 if run_er_thr_grid_search
     rerun_harq_opt = 0;
@@ -29,41 +29,42 @@ end
 err_thr_ada_scheme = "opt";
 targetCodeRate = 0.9;
 
-% PRB settings
-nPRB = 22; % Vary this to change the code length
-nlayers = 1;
-NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
-
-% CodeLen based on PRB settings
-N = nPRB*NREPerPRB;
-
 % FIX ME
 ncb = 1;
 Nref = 25344;
 
 max_iter = 6; % default is 8 in MATLAB
 max_rounds = 10;
-nFrames = 100e5;
+nFrames = 10e3;
 nFrames_LUT = nFrames;
 if ~run_er_thr_grid_search
-    nFrames_LUT = 20e4;
+    nFrames_LUT = 10e3;
 end
 
-nMiniFrames = 10e2;
+% Coding and trb settings
+modulation = '64QAM';
+M = bits_per_symbol(modulation);
+% PRB settings
+tarCodeLen = 1024;
+nlayers = 1;
+NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
+nPRB = round(tarCodeLen/(M*NREPerPRB)); % Vary this to change the code length
+
+nMiniFrames = min(10e2,nFrames);
 nOut = nFrames/nMiniFrames;
 min_err = 1000; % run till atleast 100 block errors or nFrames
 min_blocks = nFrames; %10e3; %disabling the feature for now
 min_bler = 1e-4; % URLLC requirement 1e-5
-modulation = '16QAM';
+
 mod_approx = 0;
 qam_mod = 0;
 
 % use nrTBS to get K,R
-tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate);
+tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate); %no. bits in transportBlock
 
-% Use generated code params
-M = bits_per_symbol(modulation);
-K = round(tbs/M);
+% CodeLen based on PRB settings and modulation
+N = nPRB*NREPerPRB*M;
+K = tbs;
 R = K/N;
 
 % Choose the combining scheme 
@@ -82,23 +83,29 @@ else
     res_folder_prefix = 'bler_data_cc';
 end
 
-res_folder_fb = [res_folder_prefix sprintf('/%d/fb/%s/%d',N,modulation,nFrames)];
-res_folder_fb_gs = [res_folder_prefix sprintf('/%d/fb/%s/%d',N,modulation,nFrames_LUT)];
+res_folder_fb = [res_folder_prefix sprintf('/%d/fb/%s/%d',tarCodeLen, modulation,nFrames)];
+res_folder_fb_gs = [res_folder_prefix sprintf('/%d/fb/%s/%d',tarCodeLen, modulation,nFrames_LUT)];
 if (err_thr_ada_scheme == "est")
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_est/%s/%d',N,modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_est/%s/%d',tarCodeLen, modulation,nFrames)];
 else
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_opt/%s/%d',N,modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_opt/%s/%d',tarCodeLen, modulation,nFrames)];
 end
 
 % FB params
 res_folder = res_folder_fb;
 err_thr_list = 0.000:0.005:0.025;
-if (modulation == "16QAM")
+if (modulation == "64QAM")
+    SNRdB_low = 3;
+    SNRdB_high = 4;
+elseif (modulation == "16QAM")
     SNRdB_low = 0;
-    SNRdB_high = 0.8;
-else
+    SNRdB_high = 1;
+elseif (modulation == "QPSK")
     SNRdB_low = -6;
-    SNRdB_high = -4;
+    SNRdB_high = -5;
+elseif (modulation == "pi/2-QPSK")
+    SNRdB_low = -9;
+    SNRdB_high = -8;
 end
 
 if (max_rounds == 5 && max_iter == 3)

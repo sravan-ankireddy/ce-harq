@@ -75,14 +75,14 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
                 
                 targetErrCodeRate = length(err_seq)/N;
     
-                % Pick nPRB such that K_err*bits_per_symbol >= length(err_seq)
+                % Pick nPRB such that K_err >= length(err_seq)
                 nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
                 tbs_err = nPRB_out.tbs_err;
                 nPRB = nPRB_out.nPRB;
                 
                 M = bits_per_symbol(modulation);
-                K_err = round(tbs_err/M);
-                N_err = nPRB*NREPerPRB;
+                K_err = tbs_err; %no. bits in transportBlock
+                N_err = nPRB*NREPerPRB*M;
                 R_err = K_err/N_err;
     
                 bgn_err = bgn_select(K_err,R_err);
