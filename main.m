@@ -34,8 +34,8 @@ ncb = 1;
 Nref = 25344;
 
 max_iter = 6; % default is 8 in MATLAB
-max_rounds = 10;
-nFrames = 10e3;
+max_rounds = 3;
+nFrames = 10e4;
 nFrames_LUT = nFrames;
 if ~run_er_thr_grid_search
     nFrames_LUT = 10e3;
@@ -45,7 +45,7 @@ end
 modulation = '64QAM';
 M = bits_per_symbol(modulation);
 % PRB settings
-tarCodeLen = 1024;
+tarCodeLen = 256;
 nlayers = 1;
 NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 nPRB = round(tarCodeLen/(M*NREPerPRB)); % Vary this to change the code length
@@ -93,52 +93,58 @@ end
 
 % FB params
 res_folder = res_folder_fb;
-err_thr_list = 0.000:0.005:0.025;
+err_thr_list = 0.000:0.005:0.05;
 if (modulation == "64QAM")
-    SNRdB_low = 3;
-    SNRdB_high = 4;
+    SNRdB_low = 10;
+    SNRdB_high = 12;
 elseif (modulation == "16QAM")
     SNRdB_low = 0;
     SNRdB_high = 1;
 elseif (modulation == "QPSK")
     SNRdB_low = -6;
     SNRdB_high = -5;
-elseif (modulation == "pi/2-QPSK")
+elseif (modulation == "pi/2-BPSK")
     SNRdB_low = -9;
     SNRdB_high = -8;
 end
 
-if (max_rounds == 5 && max_iter == 3)
-    SNRdB_low = -2;
-    SNRdB_high =2;
+if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 2 && max_iter == 6)
+    SNRdB_low = 10;
+    SNRdB_high = 12.5;
 end
 
-if (max_rounds == 5 && max_iter == 6)
-    SNRdB_low = -5;
-    SNRdB_high =-1;
+if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 3 && max_iter == 6)
+    SNRdB_low = 9;
+    SNRdB_high = 11;
 end
 
-if (max_rounds == 3 && max_iter == 6)
-    SNRdB_low = -2;
-    SNRdB_high = 2;
-end
-if (max_rounds == 2 && max_iter == 6)
+if (modulation == "64QAM" && targetCodeRate == 0.5 && max_rounds == 10 && max_iter == 6)
     SNRdB_low = -1;
-    SNRdB_high = 3;
+    SNRdB_high = 1.5;
 end
+
+if (modulation == "64QAM" && targetCodeRate == 0.5 && max_rounds == 2 && max_iter == 6)
+    SNRdB_low = 6;
+    SNRdB_high = 8;
+end
+
+
+
+if (modulation == "QPSK" && targetCodeRate == 0.9 && max_rounds == 2 && max_iter == 3)
+    SNRdB_low = 2.5;
+    SNRdB_high = 4.5;
+end
+
 if (combining_scheme == "CC")
     SNRdB_low = SNRdB_low + 3;
     SNRdB_high = SNRdB_high + 3;
+    err_thr_list = 0.00:0.01:0.10;
 end
 
 SNRdB_step = 0.1;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 num_SNRdB = length(SNRdB_vec);
 snr_data = SNRdB_vec;
-
-if (targetCodeRate == 0.2)
-    SNRdB_vec = SNRdB_vec - 7;
-end
 
 if (unit_test)
     err_thr_list = 0.01:0.01:0.02;

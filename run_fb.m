@@ -76,7 +76,7 @@ for i_s = 1:length(SNRdB_vec)
     for i_on = 1:nOut
     
         parfor i_n = 1:nMiniFrames
-            seed = i_n;
+            seed = i_on*nMiniFrames + i_n;
             % Update the counter 
             num_ar_harq = num_ar_harq + 1; 
             num_ar_fb = num_ar_fb + 1; 
