@@ -28,6 +28,19 @@ if ~exist('global_settings','var')
     res_folder_all = "bler_data/fb";
     process_data_fb = 0;
     err_thr_ada_scheme = "opt";
+    generate_harq_lut_data == 0;
+end
+
+if (generate_harq_lut_data == 1)
+    err_thr = 0;
+    
+    % use nrTBS to get K,R
+    tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate); %no. bits in transportBlock
+
+    % CodeLen based on PRB settings and modulation
+    N = nPRB*NREPerPRB*M;
+    K = tbs;
+    R = K/N;
 end
 
 % base graph selection based on rate and K
@@ -183,6 +196,100 @@ Avg_rounds_FB = Avg_rounds_FB/nFrames;
 
 toc;
 
+if (process_data_harq == 1)
+    BER_vec_pr_HARQ = BER_vec_pr_FB;
+    BLER_vec_pr_HARQ = BLER_vec_pr_FB;
+    Avg_rounds_HARQ = Avg_rounds_FB;
+
+	actualCodeRate_list(i_tr) = R;
+
+	% current all rounds
+	err_data_all_rates(1,i_tr,:,:) = BER_vec_pr_HARQ;
+	err_data_all_rates(2,i_tr,:,:) = BLER_vec_pr_HARQ;
+
+	ar_data_all_rates(i_tr,:) = Avg_rounds_HARQ;
+	
+	% Only for current rate 
+	err_data = squeeze(err_data_all_rates(:,i_tr,:,:));
+	ar_data = squeeze(ar_data_all_rates(i_tr,:));
+
+	 % set the figure properties
+	figure('Renderer','painters','Position',[1000 400 800 500]);
+		
+	f = semilogy(SNRdB_vec,BER_vec_pr_HARQ(end,:),'b-o');
+	
+	fs = 12;
+	xlabel('SNR','FontSize',fs);
+	ylabel('BER','FontSize',fs);
+	
+	codeRate = R;
+	leg_HARQ = sprintf('HARQ-%s BER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
+	
+	legend(leg_HARQ, 'Location','southwest','FontSize',fs);
+	
+	title_name = sprintf('HARQ-%s : LDPC %d, Rate %.3f, max. iter %d, max. rounds %d qam mod %d mod app %d', combining_scheme, N, R, max_iter, max_rounds, qam_mod, mod_approx);
+	title(title_name,'FontSize',fs);
+	
+	common_str = res_folder_all + sprintf('/BER_LDPC_%d_rate_%.3f_dec_iter_%d_max_rounds_%d_qm_%d_ma_%d', N,R, max_iter, max_rounds,qam_mod, mod_approx);
+	
+	fig_name = common_str + ".fig";
+	savefig(fig_name);
+	png_name = common_str + ".png";
+	saveas(f,png_name);
+	
+	% set the figure properties
+	figure('Renderer','painters','Position',[1000 400 800 500]);
+	
+	f = semilogy(SNRdB_vec,BLER_vec_pr_HARQ(end,:),'b-o');
+	
+	fs = 12;
+	xlabel('SNR','FontSize',fs);
+	ylabel('BLER','FontSize',fs);
+	
+	codeRate = R;
+	leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
+	
+	legend(leg_HARQ, 'Location','southwest','FontSize',fs);
+	
+	title_name = sprintf('HARQ-%s : LDPC %d, Rate %.3f, max. iter %d, max. rounds %d qam mod %d mod app %d', combining_scheme, N, R, max_iter, max_rounds, qam_mod, mod_approx);
+	title(title_name,'FontSize',fs);
+	
+	common_str = res_folder_all + sprintf('/BLER_LDPC_%d_rate_%.3f_dec_iter_%d_max_rounds_%d_qm_%d_ma_%d', N,R, max_iter, max_rounds,qam_mod, mod_approx);
+	
+	fig_name = common_str + ".fig";
+	savefig(fig_name);
+	png_name = common_str + ".png";
+	saveas(f,png_name);
+	
+	%% Avg rounds
+
+	% set the figure properties
+	figure('Renderer','painters','Position',[1000 400 800 500]);
+	
+	f = semilogy(SNRdB_vec,Avg_rounds_HARQ,'b-o');
+	
+	fs = 12;
+	xlabel('SNR','FontSize',fs);
+	ylabel('Avg. rounds','FontSize',fs);
+	
+	leg_HARQ = sprintf('HARQ-%s AR FB Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
+	legend(leg_HARQ, 'Location','southwest','FontSize',fs);
+	
+	title_name = sprintf('HARQ-%s: LDPC %d, Rate %.3f, max. iter %d, max. rounds %d qam mod %d mod app %d', combining_scheme, N, R, max_iter, max_rounds, qam_mod, mod_approx);
+	title(title_name,'FontSize',fs);
+	
+	common_str = res_folder_all + sprintf('/AR_LDPC_%d_rate_%.3f_dec_iter_%d_max_rounds_%d_qm_%d_ma_%d', N,R, max_iter, max_rounds,qam_mod, mod_approx);
+	
+	fig_name = common_str + ".fig";
+	savefig(fig_name);
+	png_name = common_str + ".png";
+	saveas(f,png_name);
+	
+	% Store data    
+	rate = R;
+	data_file_name = res_folder_all + sprintf('/harq_data_LDPC_%d_rate_%.3f_dec_iter_%d_max_rounds_%d_qm_%d_ma_%d.mat', N,R, max_iter, max_rounds,qam_mod, mod_approx);
+	save(data_file_name,'err_data','ar_data','snr_data','rate');
+end
 
 if (process_data_fb == 1)
     actualCodeRate_list(i_e) = R;
