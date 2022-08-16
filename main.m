@@ -33,16 +33,16 @@ targetCodeRate = 0.9;
 ncb = 1;
 Nref = 25344;
 
-max_iter = 6; % default is 8 in MATLAB
-max_rounds = 3;
-nFrames = 10e4;
+max_iter = 3; % default is 8 in MATLAB
+max_rounds = 4;
+nFrames = 10e5;
 nFrames_LUT = nFrames;
 if ~run_er_thr_grid_search
     nFrames_LUT = 10e3;
 end
 
 % Coding and trb settings
-modulation = '64QAM';
+modulation = 'QPSK';
 M = bits_per_symbol(modulation);
 % PRB settings
 tarCodeLen = 256;
@@ -94,19 +94,6 @@ end
 % FB params
 res_folder = res_folder_fb;
 err_thr_list = 0.000:0.005:0.05;
-if (modulation == "64QAM")
-    SNRdB_low = 10;
-    SNRdB_high = 12;
-elseif (modulation == "16QAM")
-    SNRdB_low = 0;
-    SNRdB_high = 1;
-elseif (modulation == "QPSK")
-    SNRdB_low = -6;
-    SNRdB_high = -5;
-elseif (modulation == "pi/2-BPSK")
-    SNRdB_low = -9;
-    SNRdB_high = -8;
-end
 
 if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 2 && max_iter == 6)
     SNRdB_low = 10;
@@ -114,8 +101,33 @@ if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 2 && max_ite
 end
 
 if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 3 && max_iter == 6)
-    SNRdB_low = 9;
-    SNRdB_high = 11;
+    SNRdB_low = 8;
+    SNRdB_high = 10.5;
+end
+
+if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 4 && max_iter == 6)
+    SNRdB_low = 5.5;
+    SNRdB_high = 8;
+end
+
+if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 5 && max_iter == 6)
+    SNRdB_low = 4;
+    SNRdB_high = 6.5;
+end
+
+if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 6 && max_iter == 6)
+    SNRdB_low = 3.5;
+    SNRdB_high = 6;
+end
+
+if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 10 && max_iter == 6)
+    SNRdB_low = 1;
+    SNRdB_high = 3.5;
+end
+
+if (modulation == "64QAM" && targetCodeRate == 0.9 && max_rounds == 15 && max_iter == 6)
+    SNRdB_low = 1;
+    SNRdB_high = 3.5;
 end
 
 if (modulation == "64QAM" && targetCodeRate == 0.5 && max_rounds == 10 && max_iter == 6)
@@ -128,11 +140,24 @@ if (modulation == "64QAM" && targetCodeRate == 0.5 && max_rounds == 2 && max_ite
     SNRdB_high = 8;
 end
 
-
-
 if (modulation == "QPSK" && targetCodeRate == 0.9 && max_rounds == 2 && max_iter == 3)
     SNRdB_low = 2.5;
     SNRdB_high = 4.5;
+end
+
+if (modulation == "QPSK" && targetCodeRate == 0.9 && max_rounds == 4 && max_iter == 3)
+    SNRdB_low = 0;
+    SNRdB_high = 2.5;
+end
+
+if (modulation == "QPSK" && targetCodeRate == 0.9 && max_rounds == 2 && max_iter == 6)
+    SNRdB_low = 1;
+    SNRdB_high = 3.5;
+end
+
+if (modulation == "QPSK" && targetCodeRate == 0.9 && max_rounds == 4 && max_iter == 6)
+    SNRdB_low = -2;
+    SNRdB_high = 0;
 end
 
 if (combining_scheme == "CC")
@@ -320,6 +345,27 @@ save(data_file_name,'err_data_fb','ar_data_fb','snr_data','err_thr_ada_list');
 %% Plot and compare results
 
 %% Plot the cumulative results
+% set the figure properties for BER plots
+f = figure('Renderer','painters','Position',[1000 400 800 500]);
+
+semilogy(SNRdB_vec,squeeze(err_data_harq(2,end,:)),'b-o');
+hold on;
+semilogy(SNRdB_vec,squeeze(err_data_fb(2,end,:)),'r-d');
+fs = 12;
+xlabel('SNR','FontSize',fs);
+ylabel('BER','FontSize',fs);
+leg_HARQ = sprintf('HARQ-%s BER Rate %.3f, max. %d rounds',combining_scheme, R, max_rounds);
+leg_FB = sprintf('FB-%s BER Rate %.3f, max. %d rounds',combining_scheme, R, max_rounds);
+legend(leg_HARQ,leg_FB, 'Location','southwest','FontSize',fs);
+title_str = sprintf('HARQ vs FB-%s scheme opt. err thr : BER LDPC %d mod. %s Rate %.3f max. iter %d max.rounds %d',combining_scheme, N, modulation, R, max_iter, max_rounds);
+title(title_str);
+BER_common_str = [res_folder sprintf('/BER_HARQ_vs_FB_LDPC_%d_rate_%.3f_dec_iter_%d_err_thr_ada_max_rounds_%d_qm_%d_ma_%d_numF_%d',N,R, max_iter, max_rounds, qam_mod, mod_approx, nFrames)];
+filename_BER_fig = BER_common_str + ".fig";
+filename_BER_png = BER_common_str + ".png";
+
+savefig(filename_BER_fig);
+saveas(f,filename_BER_png);
+
 % set the figure properties for BLER plots
 f = figure('Renderer','painters','Position',[1000 400 800 500]);
 
