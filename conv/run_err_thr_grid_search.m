@@ -1,6 +1,8 @@
+cd ..; startup; cd conv;
+
 global_settings = 1;
 
-err_thr_grid = 0.0:0.005:0.1;
+err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
@@ -9,18 +11,41 @@ nMiniFrames = 10000;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 10;
+max_rounds = 4;
 
 % Code parameters
-targetCodeRate = 0.5;
+targetCodeRate = 3/4;
 
-K = 400;
-N = ceil(K/targetCodeRate);
+N = 400;
+K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
+dec_type = "unquant";
 
-SNRdB_low = -10;
-SNRdB_high = -4;
+if (R == 1/2)
+    if (max_rounds == 10)
+        SNRdB_low = -10;
+        SNRdB_high = -4;
+    elseif (max_rounds == 4)
+        SNRdB_low = -6;
+        SNRdB_high = 0;
+    end
+elseif (R == 1/3)
+    SNRdB_low = -12;
+    SNRdB_high = -6;
+elseif (R == 1/4)
+    SNRdB_low = -16;
+    SNRdB_high = -8;
+elseif (R == 3/4)
+    if (max_rounds == 10)
+        SNRdB_low = -8;
+        SNRdB_high = -2;
+    elseif (max_rounds == 4)
+        SNRdB_low = -4;
+        SNRdB_high = 2;
+    end
+end
+
 SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
@@ -83,9 +108,6 @@ for i_e = 1:gs_size
     
     Avg_rounds_FB_gs(i_e,:) = Avg_rounds_FB;
 end
-
-
-
 
 %% Plot the cumulative results
 % set the figure properties for BLER plots

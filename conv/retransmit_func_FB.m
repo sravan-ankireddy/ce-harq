@@ -1,4 +1,4 @@
-function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
+function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
     Avg_rounds_FB = 0;
@@ -18,7 +18,11 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,data,rxLLR,data
 
     comp_rates = 1./(2:12);
     minR = comp_rates(end);
+    rc = 0;
 
+    min_bler = 1e-4;
+    harq_data = load('bler_data/400/harq/BPSK/10000/harq_data_Conv_400_rate_0.750_rate_0.083_max_rounds_4.mat');
+    acomp_table = load('lut_data/acomp_400_ns_100000.mat');
     for i_r = 1:max_rounds-1
 
         num_err_FB = sum(data ~= double(data_est_FB));
@@ -26,7 +30,12 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,data,rxLLR,data
 
         % Adaptive err thr
         if (err_thr_ada_scheme == "est")
-            err_thr = err_thr_ada_list_est((max_rounds - i_r),i_s);
+            % err_thr = err_thr_ada_list_est((max_rounds - i_r),i_s);
+            if (fb_scheme == "FB")
+                err_thr = err_thr_select(harq_data,acomp_table,targetErrCodeRate,SNRdB,max_rounds - i_r,min_bler);
+            else
+                err_thr = err_thr_select(harq_data,acomp_table,R,SNRdB,max_rounds - i_r,min_bler);
+            end
         end
 
         % Once the error becomes sparse enough, stay on FB scheme
@@ -98,6 +107,17 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,data,rxLLR,data
                         comp_rate = comp_rates(min_ind);
                     end
                 else
+                    % % repeat as many times before reaching minR
+                    % rc = floor(minR/targetErrCodeRate);
+                    % if (rc > 1)
+                    %     err_seq_rc = [];
+                    %     for i_rc = 1:rc
+                    %         err_seq_rc = [err_seq_rc; err_seq];                            
+                    %     end
+                    %     sprintf('Doing rc - %d',rc);
+                    %     err_seq = err_seq_rc;
+                    % end
+
                     comp_rate = comp_rates(end);
                     min_ind = length(comp_rates) - 1;
                 end
@@ -105,7 +125,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,data,rxLLR,data
                 comp_str = 'conv' + string(min_ind+1);
                 
                 % encode to length <= K
-                comp_code = channel_encode(err_seq, comp_str);
+                comp_code = channel_encode(err_seq, comp_str, dec_type);
 
 %                 % pad with zeros
 %                 nnz = K - length(comp_code);
@@ -199,7 +219,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,data,rxLLR,data
 %             % remove the padded zeros
 %             outer_err_seq_est = outer_err_seq_est(1:end-nnz);
             outer_err_seq_est = rxLLR_FB > 0;
-            inner_err_seq_est = channel_decode(outer_err_seq_est,comp_str);
+            inner_err_seq_est = channel_decode(outer_err_seq_est,comp_str,dec_type);
 
             % Decompress
             err_deseq_est = arithdeco(double(inner_err_seq_est),counts,length(data))-1;
@@ -276,7 +296,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,data,rxLLR,data
             rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
             
             % Rate recovery and Decoding
-            data_est_FB = conv_dec(rxLLR_FB_HARQ, rr_len);
+            data_est_FB = conv_dec(rxLLR_FB_HARQ, R);
      
             % Check for errors : post descrambling
             num_err_FB = sum(mod(data+double(data_est_FB),2));

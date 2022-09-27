@@ -9,7 +9,8 @@ if ~exist('global_settings','var')
     N = ceil(K/targetCodeRate);
     R = targetCodeRate;
     combining_scheme = "CC";
-    
+    dec_type = "hard";
+
     SNRdB_low = -10;
     SNRdB_high = -5;
     SNRdB_step = 0.5;
@@ -52,6 +53,10 @@ for i_s = 1:length(SNRdB_vec)
     noiseVar = 1./(10.^(SNRdB/10));
 
     err_thr = err_thr_ada_list(i_s);
+
+    if (err_thr_ada_scheme == "est")
+        err_thr = err_thr_ada_list_est((max_rounds - 1),i_s);
+    end
 
     % Compressor set up
     p = round(100*err_thr);
@@ -108,7 +113,7 @@ for i_s = 1:length(SNRdB_vec)
             end
 
             % Rate recovery and Decoding
-            data_est = conv_dec(rxLLR, targetCodeRate);
+            data_est = conv_dec(rxLLR, targetCodeRate, dec_type);
 
             % Check for error stats
             num_err = sum(data ~= double(data_est));
@@ -119,7 +124,7 @@ for i_s = 1:length(SNRdB_vec)
             % Start retransmission if 1st round failed
             
             if (num_err > 0 && max_rounds > 1)
-                out = retransmit_func_FB(channel,SNRdB,modulation,length(rxLLR),K,targetCodeRate,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
+                out = retransmit_func_FB(channel,SNRdB,modulation,length(rxLLR),K,targetCodeRate,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
                 num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
                 num_err_FB = out.num_err_FB;
                 num_err_FB_per_round = out.num_err_vec;
@@ -153,7 +158,11 @@ toc;
 
 %% 
 disp("err_thr_used : ");
-disp(err_thr_ada_list);
+if (err_thr_ada_scheme == "est")
+    disp( err_thr_ada_list_est);
+else
+    disp(err_thr_ada_list);
+end
 
 % plotting
 if (process_data_fb == 1)
