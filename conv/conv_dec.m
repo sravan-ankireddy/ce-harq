@@ -10,7 +10,7 @@ function [msg_hat] = conv_dec(llr, rate, dec_type)
     if (dec_type == 'hard')
         rx_code = llr > 0;
     else
-        rx_code = llr;
+        rx_code = -1*llr;
     end
 
     if (rate == 3/4)

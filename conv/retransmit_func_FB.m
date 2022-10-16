@@ -12,6 +12,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
     num_err_vec = zeros(max_rounds,1);
     num_err_vec(1) = num_err;
 
+    noiseVar = 1./(10.^(SNRdB/10));
     rep_coding = 0;
     tc_rp = 0.2;
     rc = 0;
@@ -107,17 +108,6 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                         comp_rate = comp_rates(min_ind);
                     end
                 else
-                    % % repeat as many times before reaching minR
-                    % rc = floor(minR/targetErrCodeRate);
-                    % if (rc > 1)
-                    %     err_seq_rc = [];
-                    %     for i_rc = 1:rc
-                    %         err_seq_rc = [err_seq_rc; err_seq];                            
-                    %     end
-                    %     sprintf('Doing rc - %d',rc);
-                    %     err_seq = err_seq_rc;
-                    % end
-
                     comp_rate = comp_rates(end);
                     min_ind = length(comp_rates) - 1;
                 end
@@ -125,26 +115,9 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 comp_str = 'conv' + string(min_ind+1);
                 
                 % encode to length <= K
-                comp_code = channel_encode(err_seq, comp_str, dec_type);
-
-%                 % pad with zeros
-%                 nnz = K - length(comp_code);
-%                 assert(nnz >= 0,'Comp code failed in FB round %d',i_r);
-% 
-%                 comp_code = [comp_code; zeros(nnz,1)];
+                comp_code = conv_enc(err_seq, comp_rate);
 
                 errDataInSeq = comp_code;
-                
-%                 % use rep coding to go beyond least code rate
-%                 if (rep_coding == 1 && targetErrCodeRate < tc_rp)
-%                     rc = floor(tc_rp*N/(length(err_seq)+16));
-%                     err_seq_vec = [];
-%                     for ie = 1:rc
-%                         err_seq_vec = [err_seq_vec; err_seq];
-%                     end
-%                     err_seq = err_seq_vec;
-%                     targetErrCodeRate = (length(err_seq)+16)/N;
-%                 end
 
                 % Symbol Modulation
                 bpskModulator = comm.BPSKModulator;
@@ -153,10 +126,12 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                     
                 % Pass through channel
                 if (channel == "awgn")
-                    rxSig_FB = awgn(txSig_FB,SNRdB);
+                    % rxSig_FB = awgn(txSig_FB,SNRdB);
+                    rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
                 elseif (channel == "rayleigh")
                     h = sqrt(rand(1)^2 + rand(1)^2);
-                    rxSig_FB = awgn(h*txSig_FB,SNRdB);
+                    % rxSig_FB = awgn(h*txSig_FB,SNRdB);
+                    rxSig_FB = h*txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
                 end
             else
                 % Encoding and Rate matching using new RV
@@ -169,10 +144,12 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
                 % Pass through channel
                 if (channel == "awgn")
-                    rxSig_FB = awgn(txSig_FB,SNRdB);
+                    % rxSig_FB = awgn(txSig_FB,SNRdB);
+                    rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
                 elseif (channel == "rayleigh")
                     h = sqrt(rand(1)^2 + rand(1)^2);
-                    rxSig_FB = awgn(h*txSig_FB,SNRdB);
+                    % rxSig_FB = awgn(h*txSig_FB,SNRdB);
+                    rxSig_FB = h*txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
                 end
             end
     
@@ -197,29 +174,13 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                     rxLLR_FB = 1 - 2*double(lteSymbolDemodulate(rxSig_FB,modulation,'DecisionType','hard'));
                 end
             end
-            
-%             % Rep code combining
-%             if (rc > 1 && rep_coding == 1)
-%                 temp = reshape(rxLLR_FB, length(rxLLR_FB)/rc,rc);
-%                 rxLLR_FB = sum(temp,2);
-%             end
 
             % Combining
             rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
             rxLLR_FB = sum(rxLLR_FB_buffer, 2);
             
-%             % Outer code : decode outer code
-%             outer_err_seq_est = double(conv_dec(rxLLR_FB, err_rr_len));
-% 
-%             % Deinterleaver            
-%             outer_err_seq_est = randdeintrlv(outer_err_seq_est,0);
-%     
-%             % Inner code : decoder inner coder using llr from hard info 
-% %             outer_llr = 2*outer_err_seq_est - 1;
-%             % remove the padded zeros
-%             outer_err_seq_est = outer_err_seq_est(1:end-nnz);
-            outer_err_seq_est = rxLLR_FB > 0;
-            inner_err_seq_est = channel_decode(outer_err_seq_est,comp_str,dec_type);
+            % outer_err_seq_est = rxLLR_FB > 0;
+            inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
 
             % Decompress
             err_deseq_est = arithdeco(double(inner_err_seq_est),counts,length(data))-1;
@@ -263,10 +224,12 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
             % Pass through channel
             if (channel == "awgn")
-                newRxSig = awgn(txSig,SNRdB);
+                % newRxSig = awgn(txSig,SNRdB);
+                newRxSig = txSig + sqrt(noiseVar) * rand(size(txSig));
             elseif (channel == "rayleigh")
                 h = sqrt(rand(1)^2 + rand(1)^2);
-                newRxSig = awgn(h*txSig,SNRdB);
+                % newRxSig = awgn(h*txSig,SNRdB);
+                newRxSig = h*txSig + sqrt(noiseVar) * rand(size(txSig));
             end
 
             % Symbol demod
@@ -296,7 +259,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
             rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
             
             % Rate recovery and Decoding
-            data_est_FB = conv_dec(rxLLR_FB_HARQ, R);
+            data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);
      
             % Check for errors : post descrambling
             num_err_FB = sum(mod(data+double(data_est_FB),2));

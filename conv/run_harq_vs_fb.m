@@ -9,11 +9,11 @@ err_thr = 0.00;
 err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
 err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
 
-err_thr_ada_list_est(1,:) = 0.05;
-err_thr_ada_list_est(2,:) = 0.06;
-err_thr_ada_list_est(3,:) = 0.075;
-err_thr_ada_list_est(4,:) = 0.075;
-err_thr_ada_scheme = "est";
+% err_thr_ada_list_est(1,:) = 0.05;
+% err_thr_ada_list_est(2,:) = 0.06;
+% err_thr_ada_list_est(3,:) = 0.075;
+% err_thr_ada_list_est(4,:) = 0.075;
+% err_thr_ada_scheme = "opt";
 run_fb;
 
 err_thr_ada_scheme = "opt";
@@ -41,7 +41,7 @@ xlabel('SNR','FontSize',fs);
 ylabel('BLER','FontSize',fs);
 
 codeRate = R;
-leg_HARQ = sprintf('FB-HARQ BLER Rate %.3f, max. %d rounds', codeRate, max_rounds);
+leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
 leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
 legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
@@ -69,7 +69,7 @@ xlabel('SNR','FontSize',fs);
 ylabel('Avg. Rounds','FontSize',fs);
 
 codeRate = R;
-leg_HARQ = sprintf('FB-HARQ Avg Rounds %.3f, max. %d rounds', codeRate, max_rounds);
+leg_HARQ = sprintf('HARQ-%s Avg Rounds %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
 leg_FB = sprintf('FB-%s Avg Rounds %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
 legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);

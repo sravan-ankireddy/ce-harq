@@ -93,10 +93,14 @@ for i_s = 1:length(SNRdB_vec)
             txSig = bpskModulator(dataIn);
 
             % Pass through channel
-            rxSig = awgn(txSig,SNRdB);
-            if (channel == "rayleigh")
+            % rxSig = awgn(txSig,SNRdB);
+            rxSig = txSig
+            if (channel == "awgn")
+                rxSig = rxSig + sqrt(noiseVar) * rand(size(txSig));
+            elseif (channel == "rayleigh")
                 h = sqrt(rand(1)^2 + rand(1)^2);
-                rxSig = awgn(h*txSig,SNRdB);
+                % rxSig = awgn(h*txSig,SNRdB);
+                rxSig = h*rxSig + sqrt(noiseVar) * rand(size(txSig));
             end
 
             % Symbol demod

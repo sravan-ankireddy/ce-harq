@@ -1,13 +1,14 @@
 cd ..; startup; cd conv;
 
 global_settings = 1;
+run_grid_search = 1;
 
-err_thr_grid = 0.00:0.005:0.1;
+err_thr_grid = 0.00:0.01:0.15;
 gs_size = length(err_thr_grid);
 
 % sim params
 nOut = 10;
-nMiniFrames = 10000;
+nMiniFrames = 50;
 
 nFrames = nOut*nMiniFrames;
 
@@ -46,6 +47,9 @@ elseif (R == 3/4)
     end
 end
 
+SNRdB_low = SNRdB_low - 4;
+SNRdB_high = SNRdB_high - 4;
+
 SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
@@ -70,12 +74,12 @@ channel = "awgn";
 
 res_folder_prefix = 'bler_data';
 
-res_folder_fb = [res_folder_prefix sprintf('/%d/fb/%s/%d',N, modulation,nFrames)];
+res_folder_fb = [res_folder_prefix sprintf('/%d/%s/fb/%s/%d', N, dec_type, modulation, nFrames)];
 
 if (err_thr_ada_scheme == "est")
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_est/%s/%d',N, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/%s/harq_vs_fb_est/%s/%d',N, dec_type, modulation,nFrames)];
 else
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/harq_vs_fb_opt/%s/%d',N, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/%s/harq_vs_fb_opt/%s/%d',N, dec_type, modulation,nFrames)];
 end
 
 if ~exist(res_folder_fb,'dir')
@@ -93,72 +97,80 @@ end
 
 process_data_fb = 1;
 
-for i_e = 1:gs_size
-    err_thr = err_thr_grid(i_e);
-    err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
-    err_thr_ada_list_est = 0;
-    run_fb;
+if (run_grid_search == 1)
+    for i_e = 1:gs_size
+        err_thr = err_thr_grid(i_e);
+        err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
+        err_thr_ada_list_est = 0;
+        run_fb;
 
-    % Error Stats
-    BER_vec_FB_gs(i_e,:) = BER_vec_FB;
-    BLER_vec_FB_gs(i_e,:) = BLER_vec_FB;
-    
-    BER_vec_pr_FB_gs(i_e,:,:) = BER_vec_pr_FB;
-    BLER_vec_pr_FB_gs(i_e,:,:) = BLER_vec_pr_FB;
-    
-    Avg_rounds_FB_gs(i_e,:) = Avg_rounds_FB;
+        % Error Stats
+        BER_vec_FB_gs(i_e,:) = BER_vec_FB;
+        BLER_vec_FB_gs(i_e,:) = BLER_vec_FB;
+        
+        BER_vec_pr_FB_gs(i_e,:,:) = BER_vec_pr_FB;
+        BLER_vec_pr_FB_gs(i_e,:,:) = BLER_vec_pr_FB;
+        
+        Avg_rounds_FB_gs(i_e,:) = Avg_rounds_FB;
+    end
+
+    %% Plot the cumulative results
+    % set the figure properties for BLER plots
+    f = figure('Renderer','painters','Position',[1000 400 800 500]);
+
+    leg_str = {};
+    for i_e = 1:length(err_thr_grid)
+        semilogy(SNRdB_vec,squeeze(BLER_vec_FB_gs(i_e,:)));
+        hold on;
+        leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
+    end
+    xlabel('SNR');
+    ylabel('BLER');
+    legend(leg_str);
+    title_str = sprintf('FB-%s scheme : BLER LDPC %d mod. %s Rate %.3f max.rounds %d',combining_scheme, N, modulation, R, max_rounds);
+    title(title_str);
+    bler_common_str = [res_folder_fb sprintf('/FB_BLER_LDPC_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',N,R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
+    filename_BLER_fig = bler_common_str + ".fig";
+    filename_BLER_png = bler_common_str + ".png";
+
+    savefig(filename_BLER_fig);
+    saveas(f,filename_BLER_png);
+
+    % set the figure properties for AR plots
+    f = figure('Renderer','painters','Position',[1000 400 800 500]);
+
+    leg_str = {};
+    for i_e = 1:length(err_thr_grid)
+        semilogy(SNRdB_vec,squeeze(Avg_rounds_FB_gs(i_e,:)));
+        hold on;
+        leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
+    end
+    xlabel('SNR');
+    ylabel('Avg. rounds');
+    legend(leg_str);
+    title_str = sprintf('FB-%s scheme : AR LDPC %d mod. %s Rate %.3f max. rounds %d',combining_scheme, N, modulation, R, max_rounds);
+    title(title_str);
+    ar_common_str = [res_folder_fb sprintf('/FB_AR_LDPC_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',N,R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
+    filename_AR_fig = ar_common_str + ".fig";
+    filename_AR_png = ar_common_str + ".png";
+
+    savefig(filename_AR_fig);
+    saveas(f,filename_AR_png);
+
+    ber_data = BER_vec_pr_FB_gs;
+    bler_data = BLER_vec_pr_FB_gs;
+    ar_data = Avg_rounds_FB_gs;
+    snr_data = SNRdB_vec;
 end
 
-%% Plot the cumulative results
-% set the figure properties for BLER plots
-f = figure('Renderer','painters','Position',[1000 400 800 500]);
-
-leg_str = {};
-for i_e = 1:length(err_thr_grid)
-	semilogy(SNRdB_vec,squeeze(BLER_vec_FB_gs(i_e,:)));
-	hold on;
-	leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
+% Store data
+if (run_grid_search == 1)
+    data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
+    save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
+else
+    nFrames_ref = 10000
+    res_folder_fb = [res_folder_prefix sprintf('/%d/fb/%s/%d',N, modulation,nFrames_ref)];
+    data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
 end
-xlabel('SNR');
-ylabel('BLER');
-legend(leg_str);
-title_str = sprintf('FB-%s scheme : BLER LDPC %d mod. %s Rate %.3f max.rounds %d',combining_scheme, N, modulation, R, max_rounds);
-title(title_str);
-bler_common_str = [res_folder_fb sprintf('/FB_BLER_LDPC_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',N,R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
-filename_BLER_fig = bler_common_str + ".fig";
-filename_BLER_png = bler_common_str + ".png";
-
-savefig(filename_BLER_fig);
-saveas(f,filename_BLER_png);
-
-% set the figure properties for AR plots
-f = figure('Renderer','painters','Position',[1000 400 800 500]);
-
-leg_str = {};
-for i_e = 1:length(err_thr_grid)
-	semilogy(SNRdB_vec,squeeze(Avg_rounds_FB_gs(i_e,:)));
-	hold on;
-	leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
-end
-xlabel('SNR');
-ylabel('Avg. rounds');
-legend(leg_str);
-title_str = sprintf('FB-%s scheme : AR LDPC %d mod. %s Rate %.3f max. rounds %d',combining_scheme, N, modulation, R, max_rounds);
-title(title_str);
-ar_common_str = [res_folder_fb sprintf('/FB_AR_LDPC_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',N,R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
-filename_AR_fig = ar_common_str + ".fig";
-filename_AR_png = ar_common_str + ".png";
-
-savefig(filename_AR_fig);
-saveas(f,filename_AR_png);
-
-ber_data = BER_vec_pr_FB_gs;
-bler_data = BLER_vec_pr_FB_gs;
-ar_data = Avg_rounds_FB_gs;
-snr_data = SNRdB_vec;
-
-% Store data 
-data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
-save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
 
 run_harq_vs_fb;
