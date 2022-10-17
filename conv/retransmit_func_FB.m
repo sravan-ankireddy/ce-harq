@@ -47,10 +47,14 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 % disp("found sparse err ")
                 % Also check if the error is compressible
                 data_est_err_temp = mod(data+double(data_est_FB),2);
-                err_seq_temp = arithenco(data_est_err_temp+1,counts);
+                % iterative counts
+                p_cur = max(1,round(100 * sum(data_est_err_temp)/length(data_est_err_temp)));
+                counts_temp = [100-p_cur p_cur];
+                err_seq_temp = arithenco(data_est_err_temp+1,counts_temp);
                 if (length(err_seq_temp) < length(data_est_err_temp))
                     fb_scheme = "FB";
                     decision_switch = 1;
+                    counts = counts_temp;
                     % disp(" switched to feedback ")
                 else
                     fb_scheme = "HARQ";
@@ -87,7 +91,10 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
             if (inner_scheme == "FB")
                 % disp("inner feedback scheme ")
-
+                
+                % iterative counts
+                p_cur = max(1,round(100 * sum(data_est_err)/length(data_est_err)));
+                counts = [100-p_cur p_cur];
                 err_seq = arithenco(data_est_err+1,counts);
     
                 assert(length(err_seq) < length(data_est_err),'Compression failed in FB round %d',i_r);
@@ -126,8 +133,8 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                     
                 % Pass through channel
                 if (channel == "awgn")
-                    % rxSig_FB = awgn(txSig_FB,SNRdB);
-                    rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
+                    rxSig_FB = awgn(txSig_FB,SNRdB);
+                    % rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
                 elseif (channel == "rayleigh")
                     h = sqrt(rand(1)^2 + rand(1)^2);
                     % rxSig_FB = awgn(h*txSig_FB,SNRdB);
@@ -144,8 +151,8 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
                 % Pass through channel
                 if (channel == "awgn")
-                    % rxSig_FB = awgn(txSig_FB,SNRdB);
-                    rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
+                    rxSig_FB = awgn(txSig_FB,SNRdB);
+                    % rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
                 elseif (channel == "rayleigh")
                     h = sqrt(rand(1)^2 + rand(1)^2);
                     % rxSig_FB = awgn(h*txSig_FB,SNRdB);
@@ -175,9 +182,16 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 end
             end
 
-            % Combining
-            rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
-            rxLLR_FB = sum(rxLLR_FB_buffer, 2);
+            % Chase Combining
+            if (dec_type == "hard")
+                rxLLR_FB = rxLLR_FB > 0;
+                rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
+                rxLLR_FB = round(mean(rxLLR_FB_buffer, 2));
+            else
+                rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
+                rxLLR_FB = sum(rxLLR_FB_buffer, 2);
+            end
+
             
             % outer_err_seq_est = rxLLR_FB > 0;
             inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
@@ -224,8 +238,8 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
             % Pass through channel
             if (channel == "awgn")
-                % newRxSig = awgn(txSig,SNRdB);
-                newRxSig = txSig + sqrt(noiseVar) * rand(size(txSig));
+                newRxSig = awgn(txSig,SNRdB);
+                % newRxSig = txSig + sqrt(noiseVar) * rand(size(txSig));
             elseif (channel == "rayleigh")
                 h = sqrt(rand(1)^2 + rand(1)^2);
                 % newRxSig = awgn(h*txSig,SNRdB);
@@ -254,9 +268,15 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 end
             end
             
-            % Combining
-            rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
-            rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
+            % Chase Combining
+            if (dec_type == "hard")
+                newRxLLR_HARQ = newRxLLR_HARQ > 0;
+                rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
+                rxLLR_FB_HARQ = round(mean(rxLLR_HARQ_buffer,2));
+            else
+                rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
+                rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
+            end
             
             % Rate recovery and Decoding
             data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);

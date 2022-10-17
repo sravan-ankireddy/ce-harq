@@ -5,8 +5,8 @@ if ~exist('global_settings','var')
     % Code parameters
     targetCodeRate = 0.5;
     
-    K = 400;
-    N = ceil(K/targetCodeRate);
+    N = 400;
+    K = round(N*targetCodeRate);
     R = targetCodeRate;
     combining_scheme = "CC";
     dec_type = "hard";
@@ -31,6 +31,7 @@ if ~exist('global_settings','var')
     % num frames
     nOut = 10;
     nMiniFrames = 1000;
+    nMinFerr = 100;
 
     res_folder_all = "results/all";
 
@@ -93,10 +94,10 @@ for i_s = 1:length(SNRdB_vec)
             txSig = bpskModulator(dataIn);
 
             % Pass through channel
-            % rxSig = awgn(txSig,SNRdB);
             rxSig = txSig
             if (channel == "awgn")
-                rxSig = rxSig + sqrt(noiseVar) * rand(size(txSig));
+                rxSig = awgn(txSig,SNRdB);
+                % rxSig = rxSig + sqrt(noiseVar) * rand(size(txSig));
             elseif (channel == "rayleigh")
                 h = sqrt(rand(1)^2 + rand(1)^2);
                 % rxSig = awgn(h*txSig,SNRdB);
@@ -117,6 +118,9 @@ for i_s = 1:length(SNRdB_vec)
             end
 
             % Rate recovery and Decoding
+            if (dec_type == "hard")
+                rxLLR = rxLLR > 0;
+            end
             data_est = conv_dec(rxLLR, targetCodeRate, dec_type);
 
             % Check for error stats
@@ -142,10 +146,12 @@ for i_s = 1:length(SNRdB_vec)
 
             BLER_FB_per_round = BLER_FB_per_round + (num_err_FB_per_round > 0);
         end
-
+        if (BLER_FB > nMinFerr)
+            break;
+        end
     end
     % AR update
-    Avg_rounds_FB(i_s) = Avg_rounds_FB(i_s) + num_ar_fb;
+    Avg_rounds_FB(i_s) = num_ar_fb/(i_on*nMiniFrames);
 
     % Error Stats
     BER_vec_FB(:,i_s) = BER_FB/(K*(i_on*nMiniFrames));
@@ -155,8 +161,6 @@ for i_s = 1:length(SNRdB_vec)
     BLER_vec_pr_FB(:,i_s) = BLER_FB_per_round/(i_on*nMiniFrames);
 end
 
-% Avg rounds per transmission
-Avg_rounds_FB = Avg_rounds_FB/(i_on*nMiniFrames);
 
 toc;
 
