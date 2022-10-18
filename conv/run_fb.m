@@ -184,6 +184,7 @@ if (process_data_fb == 1)
     fs = 12;
     xlabel('SNR','FontSize',fs);
     ylabel('BER','FontSize',fs);
+    grid on;
     
     codeRate = R;
     leg_FB = sprintf('FB-%s BER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
@@ -209,6 +210,7 @@ if (process_data_fb == 1)
     fs = 12;
     xlabel('SNR','FontSize',fs);
     ylabel('BLER','FontSize',fs);
+    grid on;
     
     codeRate = R;
     leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
@@ -235,6 +237,7 @@ if (process_data_fb == 1)
     fs = 12;
     xlabel('SNR','FontSize',fs);
     ylabel('Avg. rounds','FontSize',fs);
+    grid on;
     
     leg_FB = sprintf('FB-%s AR Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     legend(leg_FB, 'Location','southwest','FontSize',fs);

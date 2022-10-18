@@ -14,7 +14,7 @@ nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 4;
+max_rounds = 10;
 
 % Code parameters
 targetCodeRate = 3/4;
@@ -23,7 +23,7 @@ N = 400;
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "unquant";
+dec_type = "hard";
 
 if (R == 1/2)
     if (max_rounds == 10)
@@ -132,6 +132,7 @@ if (run_grid_search == 1)
     end
     xlabel('SNR');
     ylabel('BLER');
+    grid on;
     legend(leg_str);
     title_str = sprintf('FB-%s scheme : BLER LDPC %d mod. %s Rate %.3f max.rounds %d',combining_scheme, N, modulation, R, max_rounds);
     title(title_str);
@@ -153,6 +154,7 @@ if (run_grid_search == 1)
     end
     xlabel('SNR');
     ylabel('Avg. rounds');
+    grid on;
     legend(leg_str);
     title_str = sprintf('FB-%s scheme : AR LDPC %d mod. %s Rate %.3f max. rounds %d',combining_scheme, N, modulation, R, max_rounds);
     title(title_str);

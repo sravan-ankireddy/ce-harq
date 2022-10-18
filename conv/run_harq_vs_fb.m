@@ -39,6 +39,7 @@ semilogy(SNRdB_vec,BLER_FB_opt,'r-d');
 fs = 12;
 xlabel('SNR','FontSize',fs);
 ylabel('BLER','FontSize',fs);
+grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
@@ -67,6 +68,7 @@ semilogy(SNRdB_vec,Avg_rounds_FB_opt,'r-d');
 fs = 12;
 xlabel('SNR','FontSize',fs);
 ylabel('Avg. Rounds','FontSize',fs);
+grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ-%s Avg Rounds %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
