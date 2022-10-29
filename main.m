@@ -16,15 +16,7 @@ end
 rerun_fb_opt = 1;
 
 % generate harq lut : if running this, skip rest
-generate_harq_lut_data = 1;
-
-% generate acomp LUT
-acomp_lut_path = "lut_data/acomp_960_ns_100000.mat";
-if ~isfile(acomp_lut_path)
-   acomp_table = generate_acomp_table;
-else
-	acomp_table = load(acomp_lut_path);
-end
+generate_harq_lut_data = 0;
 
 % constant settings
 
@@ -38,7 +30,7 @@ Nref = 25344;
 
 max_iter = 3; % default is 8 in MATLAB
 max_rounds = 4;
-nFrames = 10e3;
+nFrames = 300;
 nFrames_LUT = nFrames;
 if ~run_er_thr_grid_search
 	nFrames_LUT = 10e3;
@@ -53,9 +45,17 @@ nlayers = 1;
 NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 nPRB = round(tarCodeLen/(M*NREPerPRB)); % Vary this to change the code length
 
+% generate acomp LUT
+acomp_lut_path = "lut_data/acomp_960_ns_100000.mat";
+if ~isfile(acomp_lut_path)
+   acomp_table = generate_acomp_table(tarCodeLen);
+else
+	acomp_table = load(acomp_lut_path);
+end
+
 nMiniFrames = min(10e2,nFrames);
 nOut = nFrames/nMiniFrames;
-min_err = 1000; % run till atleast 100 block errors or nFrames
+min_err = 500; % run till atleast 100 block errors or nFrames
 min_blocks = nFrames; %10e3; %disabling the feature for now
 min_bler = 1e-4; % URLLC requirement 1e-5
 

@@ -3,18 +3,18 @@ cd ..; startup; cd conv;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.00:0.01:0.15;
+err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 100;
+nOut = 2;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 10;
+max_rounds = 4;
 
 % Code parameters
 targetCodeRate = 3/4;
@@ -47,18 +47,38 @@ elseif (R == 3/4)
         SNRdB_low = -4;
         SNRdB_high = 2;
     end
+elseif (R == 5/6)
+    if (max_rounds == 10)
+        SNRdB_low = -8;
+        SNRdB_high = 2;
+    elseif (max_rounds == 4)
+        SNRdB_low = -4;
+        SNRdB_high = 6;
+    end
 end
 
 % SNRdB_low = -2;
 % SNRdB_high = SNRdB_high - 4;
 
+modulation = 'QPSK';
+M = 2^bits_per_symbol(modulation);
+
 SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
+
+channel = "awgn";
 
 if (dec_type == "hard")
     SNRdB_vec = SNRdB_vec + 3;
 end
 
+if (channel == "rayleigh")
+    SNRdB_vec = SNRdB_vec + 9;
+end
+
+if (modulation == "QPSK")
+    SNRdB_vec = SNRdB_vec + 3;
+end
 num_SNRdB = length(SNRdB_vec);
 
 % Error Stats
@@ -71,21 +91,19 @@ BLER_vec_pr_FB_gs = zeros(gs_size,max_rounds,num_SNRdB);
 Avg_rounds_FB_gs = zeros(gs_size,num_SNRdB);
 
 
-modulation = 'BPSK';
 mod_approx = 0;
 comm_mod = 1;
 
 err_thr_ada_scheme = "opt";
-channel = "awgn";
 
 res_folder_prefix = 'bler_data';
 
-res_folder_fb = [res_folder_prefix sprintf('/%d/%s/fb/%s/%d', N, dec_type, modulation, nFrames)];
+res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames)];
 
 if (err_thr_ada_scheme == "est")
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/%s/harq_vs_fb_est/%s/%d',N, dec_type, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%d/%s/harq_vs_fb_est/%s/%d',channel, N, dec_type, modulation,nFrames)];
 else
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%d/%s/harq_vs_fb_opt/%s/%d',N, dec_type, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%d/%s/harq_vs_fb_opt/%s/%d',channel, N, dec_type, modulation,nFrames)];
 end
 
 if ~exist(res_folder_fb,'dir')
@@ -176,7 +194,7 @@ if (run_grid_search == 1)
     data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
     save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
 else
-    nFrames_ref = 5000;
+    nFrames_ref = 100000;
     res_folder_fb = [res_folder_prefix sprintf('/%d/%s/fb/%s/%d',N, dec_type, modulation, nFrames_ref)];
     data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
 end

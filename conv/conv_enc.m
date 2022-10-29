@@ -1,7 +1,18 @@
 function [output, rr_len] = conv_enc(data_in, rate)
     
     output = 0;
-    if (rate == 3/4)
+    if (rate == 5/6)
+        trellis = poly2trellis(4,[17 13]);
+        puncpat = [1;1;0;1;0];
+        % FIX ME
+        if (round(length(data_in)/rate) <= 400)
+            termination = [0, 0, 0, 0, 0, 0, 0];
+        else
+            termination = [0, 0, 0, 0];
+        end
+        temp = [data_in; termination'];
+        output = convenc([data_in; termination'], trellis, puncpat);
+    elseif (rate == 3/4)
         trellis = poly2trellis(4,[17 13]);
         termination = [0, 0, 0];
         puncpat = [1;1;0];

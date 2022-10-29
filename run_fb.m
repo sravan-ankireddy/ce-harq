@@ -382,6 +382,11 @@ if (process_data_fb == 1)
     save(data_file_name,'err_data','ar_data','snr_data','err_thr');
 end
 
-%% 
-disp("err_thr_used : ");
-disp(err_thr_ada_list);
+%%
+if (err_thr_ada_scheme == "opt")
+    disp("err_thr_used : opt: ");
+    disp(err_thr_ada_list);
+else
+    disp("err_thr_used : est: ");
+    disp(err_thr_ada_list_est);
+end

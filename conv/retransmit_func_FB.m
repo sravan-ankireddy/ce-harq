@@ -1,6 +1,7 @@
 function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
+    M = bits_per_symbol(modulation);
     Avg_rounds_FB = 0;
     rxLLR_HARQ_buffer = rxLLR;
     rxLLR_FB_buffer = [];
@@ -21,9 +22,9 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
     minR = comp_rates(end);
     rc = 0;
 
-    min_bler = 1e-4;
-    harq_data = load('bler_data/400/harq/BPSK/10000/harq_data_Conv_400_rate_0.750_rate_0.083_max_rounds_4.mat');
-    acomp_table = load('lut_data/acomp_400_ns_100000.mat');
+    % min_bler = 1e-4;
+    % harq_data = load('bler_data/awgn/400/hard/harq/BPSK/10000/harq_data_Conv_400_rate_0.833_rate_0.083_max_rounds_4.mat');
+    % acomp_table = load('lut_data/acomp_400_ns_100000.mat');
     for i_r = 1:max_rounds-1
 
         num_err_FB = sum(data ~= double(data_est_FB));
@@ -31,14 +32,14 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
         % Adaptive err thr
         if (err_thr_ada_scheme == "est")
-            % err_thr = err_thr_ada_list_est((max_rounds - i_r),i_s);
-            if (fb_scheme == "FB")
-                err_thr = err_thr_select(harq_data,acomp_table,targetErrCodeRate,SNRdB,max_rounds - i_r,min_bler);
-            else
-                err_thr = err_thr_select(harq_data,acomp_table,R,SNRdB,max_rounds - i_r,min_bler);
-            end
+            err_thr = err_thr_ada_list_est((max_rounds - i_r),i_s);
+            % if (fb_scheme == "FB")
+            %     err_thr = err_thr_select(harq_data,acomp_table,targetErrCodeRate,SNRdB,max_rounds - i_r,min_bler);
+            % else
+            %     err_thr = err_thr_select(harq_data,acomp_table,R,SNRdB,max_rounds - i_r,min_bler);
+            % end
         end
-
+        % err_tr = 0.05;
         % Once the error becomes sparse enough, stay on FB scheme
         % Within the FB scheme, you can choose FB/HARQ based on error
         % vector
@@ -51,6 +52,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 p_cur = max(1,round(100 * sum(data_est_err_temp)/length(data_est_err_temp)));
                 counts_temp = [100-p_cur p_cur];
                 err_seq_temp = arithenco(data_est_err_temp+1,counts_temp);
+                % err_seq_temp = arithenco(data_est_err_temp+1,counts);
                 if (length(err_seq_temp) < length(data_est_err_temp))
                     fb_scheme = "FB";
                     decision_switch = 1;
@@ -127,41 +129,45 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 errDataInSeq = comp_code;
 
                 % Symbol Modulation
-                bpskModulator = comm.BPSKModulator;
-                bpskModulator.PhaseOffset = pi/4;
-                txSig_FB = bpskModulator(errDataInSeq);
+                if (modulation == "BPSK")
+                    bpskModulator = comm.BPSKModulator;
+                    bpskModulator.PhaseOffset = pi/4;
+                    txSig_FB = bpskModulator(errDataInSeq);
+                else
+                    txSig_FB = qammod(errDataInSeq,M,'InputType','bit','UnitAveragePower',true);
+                end
                     
                 % Pass through channel
                 if (channel == "awgn")
-                    rxSig_FB = awgn(txSig_FB,SNRdB);
-                    % rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
+                    rxSig_FB = awgn(txSig_FB,SNRdB,'measured');
                 elseif (channel == "rayleigh")
                     h = sqrt(rand(1)^2 + rand(1)^2);
-                    % rxSig_FB = awgn(h*txSig_FB,SNRdB);
-                    rxSig_FB = h*txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
+                    rxSig_FB = awgn(h*txSig_FB,SNRdB,'measured');
                 end
             else
                 % Encoding and Rate matching using new RV
 %                 [errDataInSeq, err_rr_len] = conv_enc(inner_code_int, R);
  
                 % Symbol Modulation
-                bpskModulator = comm.BPSKModulator;
-                bpskModulator.PhaseOffset = pi/4;
-                txSig_FB = bpskModulator(errDataInSeq);
+                if (modulation == "BPSK")
+                    bpskModulator = comm.BPSKModulator;
+                    bpskModulator.PhaseOffset = pi/4;
+                    txSig_FB = bpskModulator(errDataInSeq);
+                else
+                    txSig_FB = qammod(errDataInSeq,M,'InputType','bit','UnitAveragePower',true);
+                end
 
                 % Pass through channel
                 if (channel == "awgn")
-                    rxSig_FB = awgn(txSig_FB,SNRdB);
-                    % rxSig_FB = txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
+                    rxSig_FB = awgn(txSig_FB,SNRdB,'measured');
                 elseif (channel == "rayleigh")
                     h = sqrt(rand(1)^2 + rand(1)^2);
-                    % rxSig_FB = awgn(h*txSig_FB,SNRdB);
-                    rxSig_FB = h*txSig_FB + sqrt(noiseVar) * rand(size(txSig_FB));
+                    rxSig_FB = awgn(h*txSig_FB,SNRdB,'measured');
                 end
             end
     
             % Symbol demod
-            if (comm_mod == 1)
+            if (modulation == "BPSK")
                 if (mod_approx == 0)
                     bpskDemodulator = comm.BPSKDemodulator; 
                     bpskDemodulator.PhaseOffset = pi/4; 
@@ -174,12 +180,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                     rxLLR_FB = -1 + 2*bpskDemodulator(rxSig_FB);
                 end
             else
-                if (mod_approx == 0)
-                    noiseVar = 1./(10.^(SNRdB/10));
-                    rxLLR_FB = lteSymbolDemodulate(rxSig_FB,modulation,noiseVar);
-                else
-                    rxLLR_FB = 1 - 2*double(lteSymbolDemodulate(rxSig_FB,modulation,'DecisionType','hard'));
-                end
+                rxLLR_FB = qamdemod(rxSig_FB,M, OutputType='approxllr', UnitAveragePower=true, NoiseVariance=noiseVar);
             end
 
             % Chase Combining
@@ -228,26 +229,24 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
             [dataIn, rr_len] = conv_enc(data, R);
 
             % Symbol Modulation
-            if (comm_mod == 1)
+            if (modulation == "BPSK")
                 bpskModulator = comm.BPSKModulator;
                 bpskModulator.PhaseOffset = pi/4;
                 txSig = bpskModulator(dataIn);
             else
-                txSig = lteSymbolModulate(dataIn,modulation);
+                txSig = qammod(dataIn,M,'InputType','bit','UnitAveragePower',true);
             end
 
             % Pass through channel
             if (channel == "awgn")
-                newRxSig = awgn(txSig,SNRdB);
-                % newRxSig = txSig + sqrt(noiseVar) * rand(size(txSig));
+                newRxSig = awgn(txSig,SNRdB,'measured');
             elseif (channel == "rayleigh")
                 h = sqrt(rand(1)^2 + rand(1)^2);
-                % newRxSig = awgn(h*txSig,SNRdB);
-                newRxSig = h*txSig + sqrt(noiseVar) * rand(size(txSig));
+                newRxSig = awgn(h*txSig,SNRdB,'measured');
             end
 
             % Symbol demod
-            if (comm_mod == 1)
+            if (modulation == "BPSK")
                 if (mod_approx == 0)
                     bpskDemodulator = comm.BPSKDemodulator; 
                     bpskDemodulator.PhaseOffset = pi/4; 
@@ -260,12 +259,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                     newRxLLR_HARQ = -1 + 2*bpskDemodulator(newRxSig);
                 end
             else
-                if (mod_approx == 0)
-                    noiseVar = 1./(10.^(SNRdB/10));
-                    newRxLLR_HARQ = lteSymbolDemodulate(newRxSig,modulation,noiseVar);
-                else
-                    newRxLLR_HARQ = 1 - 2*double(lteSymbolDemodulate(newRxSig,modulation,'DecisionType','hard'));
-                end
+                newRxLLR_HARQ = qamdemod(newRxSig,M, OutputType='approxllr', UnitAveragePower=true, NoiseVariance=noiseVar);
             end
             
             % Chase Combining

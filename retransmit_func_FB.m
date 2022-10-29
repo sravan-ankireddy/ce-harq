@@ -29,10 +29,17 @@ function out = retransmit_func_FB(SNRdB,modulation,max_iter,rvSeq,nlayers,nPRB,N
             if (err_per <= err_thr && err_thr > 0)
                 % Also check if the error is compressible
                 data_est_err_temp = mod(data+double(data_est_FB),2);
-                err_seq_temp = arithenco(data_est_err_temp+1,counts);
+
+                % iterative counts
+                p_cur = max(1,round(100 * sum(data_est_err_temp)/length(data_est_err_temp)));
+                counts_temp = [100-p_cur p_cur];
+                
+                err_seq_temp = arithenco(data_est_err_temp+1,counts_temp);
                 if (length(err_seq_temp) < length(data_est_err_temp))
                     fb_scheme = "FB";
                     decision_switch = 1;
+                    counts = counts_temp;
+                    % disp ("counts updated");
                 else
                     fb_scheme = "HARQ";
                 end

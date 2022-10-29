@@ -13,7 +13,19 @@ function [msg_hat] = conv_dec(llr, rate, dec_type)
         rx_code = -1*llr;
     end
 
-    if (rate == 3/4)
+    if (rate == 5/6)
+        trellis = poly2trellis(4,[17 13]);
+        tb_len = min(15, round(length(llr)/3));
+        puncpat = [1;1;0;1;0];
+        decoded = vitdec(rx_code, trellis, tb_len, 'term', dec_type, puncpat);
+        % FIX ME
+        if (length(rx_code) <= 408)
+            decoded = decoded(1:end-7);
+        else
+            decoded = decoded(1:end-4);
+        end
+        msg_hat = decoded;
+    elseif (rate == 3/4)
         trellis = poly2trellis(4,[17 13]);
         tb_len = min(15, round(length(llr)/3));
         puncpat = [1;1;0];

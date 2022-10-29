@@ -22,11 +22,20 @@ function err_thr = err_thr_select(data,acomp_table,R,SNRdB,remRounds,min_bler)
 
     % bler corresponding to max_rounds of HARQ with base rate
     bler_data_R = squeeze(data.bler_data(rate_ind,end,snr_ind));
-
+    % disp ("base bler : ");
+    % disp(bler_data');
+    % disp("new bler : rem rounds ");
+    % disp(remRounds);
+    % disp(bler_data_R');
     % find all the rates with bler < min_bler
-    rates_ind_list = find(bler_data <= bler_data_R);
-    % rates_ind_list = find(bler_data < min_bler);
-
+    % rates_ind_list = find(bler_data <= bler_data_R);
+    rates_ind_list = find(bler_data <= min_bler);
+    if (~isempty(rates_ind_list))
+    
+    % bler_data
+    % bler_data_R
+    % min_bler
+    % rates_ind_list
     % if (min(bler_data) > 1e-2)
     % if (bler_data_R > 1e-2)
     %     err_thr = 0.05;
@@ -43,15 +52,14 @@ function err_thr = err_thr_select(data,acomp_table,R,SNRdB,remRounds,min_bler)
         sp_data = acomp_table.sp_vec;
 
         % get list of comp rates < Rc
-        disp(Rc);
         rc_data_feasible = rc_data(rc_data < Rc);
 
         [~, rc_ind] = min(abs(rc_data_feasible - Rc));
         
         err_thr = sp_data(rc_ind);
-    % else
-    %     err_thr = 0;
-    % end
+    else
+        err_thr = 0;
+    end
 
     
 end

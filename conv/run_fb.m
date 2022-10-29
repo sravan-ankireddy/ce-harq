@@ -22,6 +22,7 @@ if ~exist('global_settings','var')
     err_thr_ada_list_est = 0;
     max_rounds = 10;
     modulation = 'BPSK';
+    M = 2^bits_per_symbol(modulation);
     mod_approx = 0;
     comm_mod = 1;
     
@@ -89,32 +90,38 @@ for i_s = 1:length(SNRdB_vec)
             [dataIn, rr_len] = conv_enc(data, targetCodeRate);
             
             % Symbol Modulation
-            bpskModulator = comm.BPSKModulator;
-            bpskModulator.PhaseOffset = pi/4;
-            txSig = bpskModulator(dataIn);
+            if (modulation == "BPSK")
+                bpskModulator = comm.BPSKModulator;
+                bpskModulator.PhaseOffset = pi/4;
+                txSig = bpskModulator(dataIn);
+            else
+                txSig = qammod(dataIn,M,'InputType','bit','UnitAveragePower',true);
+            end
 
             % Pass through channel
-            rxSig = txSig
+            rxSig = txSig;
             if (channel == "awgn")
-                rxSig = awgn(txSig,SNRdB);
-                % rxSig = rxSig + sqrt(noiseVar) * rand(size(txSig));
+                rxSig = awgn(txSig,SNRdB,'measured');
             elseif (channel == "rayleigh")
                 h = sqrt(rand(1)^2 + rand(1)^2);
-                % rxSig = awgn(h*txSig,SNRdB);
-                rxSig = h*rxSig + sqrt(noiseVar) * rand(size(txSig));
+                rxSig = awgn(h*txSig,SNRdB,'measured');
             end
 
             % Symbol demod
-            if (mod_approx == 0)
-                bpskDemodulator = comm.BPSKDemodulator; 
-                bpskDemodulator.PhaseOffset = pi/4; 
-                bpskDemodulator.DecisionMethod = 'Approximate log-likelihood ratio';
-                rxLLR = -1*bpskDemodulator(rxSig);
+            if (modulation == "BPSK")
+                if (mod_approx == 0)
+                    bpskDemodulator = comm.BPSKDemodulator; 
+                    bpskDemodulator.PhaseOffset = pi/4; 
+                    bpskDemodulator.DecisionMethod = 'Approximate log-likelihood ratio';
+                    rxLLR = -1*bpskDemodulator(rxSig);
+                else
+                    bpskDemodulator = comm.BPSKDemodulator; 
+                    bpskDemodulator.PhaseOffset = pi/4; 
+                    bpskDemodulator.DecisionMethod = 'Hard decision';
+                    rxLLR = -1 + 2*bpskDemodulator(rxSig);
+                end
             else
-                bpskDemodulator = comm.BPSKDemodulator; 
-                bpskDemodulator.PhaseOffset = pi/4; 
-                bpskDemodulator.DecisionMethod = 'Hard decision';
-                rxLLR = -1 + 2*bpskDemodulator(rxSig);
+                rxLLR = qamdemod(rxSig,M, OutputType='approxllr', UnitAveragePower=true, NoiseVariance=noiseVar);
             end
 
             % Rate recovery and Decoding
@@ -165,12 +172,14 @@ end
 toc;
 
 %% 
-disp("err_thr_used : ");
-if (err_thr_ada_scheme == "est")
-    disp( err_thr_ada_list_est);
-else
+if (err_thr_ada_scheme == "opt")
+    disp("err_thr_used : opt: ");
     disp(err_thr_ada_list);
+else
+    disp("err_thr_used : est: ");
+    disp(err_thr_ada_list_est);
 end
+
 
 % plotting
 if (process_data_fb == 1)
