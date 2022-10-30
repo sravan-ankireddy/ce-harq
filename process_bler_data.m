@@ -1,10 +1,10 @@
 function [bler_out, ar_out, snr_out] = process_bler_data(data)
 
     snr_data = data.snr_data;
-    err_thr_list = data.err_thr_list;
+    err_thr_list = data.err_thr_grid;
 
     % get the bler_data for last round
-    bler_data = squeeze(data.err_data_all_thr(2,:,end,:));
+    bler_data = squeeze(data.bler_data(:,end,:));
     
     bler_out.err_thr_opt = zeros(length(snr_data),1);
     bler_out.bler_opt = zeros(length(snr_data),1);
@@ -13,14 +13,19 @@ function [bler_out, ar_out, snr_out] = process_bler_data(data)
     for is = 1:length(snr_data)
         [min_val, min_ind] = min(bler_data(:,is));
 
-        % % Pick the highest err thr if more than one err_thr gives same bler
-        % min_ind_list = find(bler_data(:,is) == min_val);
-        % if (length(min_ind_list) > 1)
-        %     min_ind = max(min_ind_list);
-        % end
-
-        bler_out.err_thr_opt(is) = err_thr_list(min_ind);
-        bler_out.bler_opt(is) = bler_data(min_ind,is);
+        % Pick the previous err threshold if all cur err are 0
+        if (sum(bler_data(:,is)) == 0)
+            bler_out.err_thr_opt(is) = bler_out.err_thr_opt(is - 1);
+            bler_out.bler_opt(is) = bler_out.bler_opt(is - 1);
+        else
+            % Pick the smallest err thr if more than one err_thr gives same bler
+            min_ind_list = find(bler_data(:,is) == min_val);
+            if (length(min_ind_list) > 1)
+                min_ind = min(min_ind_list);
+            end
+                bler_out.err_thr_opt(is) = err_thr_list(min_ind);
+                bler_out.bler_opt(is) = bler_data(min_ind,is);
+        end
 
         % fallback : when expected bler is very less, skip FB and fallback to HARQ
         % This increases Avg. rounds but for now, stay cautious 
@@ -30,7 +35,7 @@ function [bler_out, ar_out, snr_out] = process_bler_data(data)
     end
 
     % get the ar_data
-    ar_data = data.ar_data_all_thr;
+    ar_data = data.ar_data;
     
     ar_out.err_thr_opt = zeros(length(snr_data),1);
     ar_out.ar_opt = zeros(length(snr_data),1);

@@ -8,32 +8,58 @@ function err_thr = err_thr_select(data,acomp_table,R,SNRdB,remRounds,min_bler)
 
     % Extract the SNR and data
     snr_data = data.snr_data;
-    rates_data = data.actualCodeRate_list;
+    rates_data = data.code_rates;
     
     % find the ind corresponding to current SNR
     [~,snr_ind] = min(abs(snr_data - SNRdB));
 
     % extract the bler data corresponding to this SNR and the remaining
     % rounds, for all rates
-    bler_data = squeeze(data.err_data_all_rates(2,:,remRounds,snr_ind));
+    bler_data = squeeze(data.bler_data(:,remRounds,snr_ind));
 
+    % find the ind corresponding to current rate
+    [~,rate_ind] = min(abs(rates_data - R));
+
+    % bler corresponding to max_rounds of HARQ with base rate
+    bler_data_R = squeeze(data.bler_data(rate_ind,end,snr_ind));
+    % disp ("base bler : ");
+    % disp(bler_data');
+    % disp("new bler : rem rounds ");
+    % disp(remRounds);
+    % disp(bler_data_R');
     % find all the rates with bler < min_bler
-    rates_ind_list = find(bler_data < min_bler);
+    % rates_ind_list = find(bler_data <= bler_data_R);
+    rates_ind_list = find(bler_data <= min_bler);
+    if (~isempty(rates_ind_list))
+    
+    % bler_data
+    % bler_data_R
+    % min_bler
+    % rates_ind_list
+    % if (min(bler_data) > 1e-2)
+    % if (bler_data_R > 1e-2)
+    %     err_thr = 0.05;
+    % % else
+    % elseif (length(rates_ind_list) >= 1)
+        % find the max rate
+        max_rate = max(rates_data(rates_ind_list));
 
-    if (length(rates_ind_list) < 1)
-        rates_ind_list = 1;
+        % use this rate to calculate the rate of compression needed
+        Rc = max_rate/R;
+
+        % use the compression LUT to pick the sparsity 
+        rc_data = acomp_table.Rc_vec;
+        sp_data = acomp_table.sp_vec;
+
+        % get list of comp rates < Rc
+        rc_data_feasible = rc_data(rc_data < Rc);
+
+        [~, rc_ind] = min(abs(rc_data_feasible - Rc));
+        
+        err_thr = sp_data(rc_ind);
+    else
+        err_thr = 0;
     end
 
-    % find the max rate
-    max_rate = rates_data(max(rates_ind_list));
-
-    % use this rate to calculate the rate of compression needed
-    Rc = max_rate/R;
-
-    % use the compression LUT to pick the sparsity 
-    rc_data = acomp_table.Rc_vec;
-    sp_data = acomp_table.sp_vec;
-    [~, rc_ind] = min(abs(rc_data - Rc));
     
-    err_thr = sp_data(rc_ind);
 end

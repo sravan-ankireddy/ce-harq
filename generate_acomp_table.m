@@ -1,6 +1,6 @@
 function [Rc_vec, sp_vec] = generate_acomp_table(N)
     % Input sparsity
-    sp_vec = 1:20;
+    sp_vec = 0.5:0.5:10;
     
     len_vec = zeros(1,length(sp_vec));
     
@@ -19,7 +19,7 @@ function [Rc_vec, sp_vec] = generate_acomp_table(N)
             x(x0<=0.01*s) = 1;
         
             % Define the compressor
-            counts = [100-s s];
+            counts = [100-round(s) round(s)];
         
             x_comp = arithenco(x+1,counts);
         
@@ -34,6 +34,6 @@ function [Rc_vec, sp_vec] = generate_acomp_table(N)
     Rc_vec = len_vec/(N);
     sp_vec = sp_vec/100;
     % Save to a mat file
-    filename = sprintf('lut_data/acomp_960_ns_%d.mat',num_samples);
+    filename = sprintf('lut_data/acomp_%d_ns_%d.mat',N,num_samples);
     save(filename,'Rc_vec','sp_vec');
 end
