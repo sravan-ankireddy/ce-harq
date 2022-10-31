@@ -90,7 +90,7 @@ saveas(f,png_name);
 figure('Renderer','painters','Position',[1000 400 800 500]);
 
 SE_HARQ = (K*k/N) * (1 - BLER_HARQ)./Avg_rounds_HARQ;
-SE_FB = (K*k/N) * (1 - BLER_FB_opt)./Avg_rounds_HARQ;
+SE_FB = (K*k/N) * (1 - BLER_FB_opt)./Avg_rounds_FB;
 
 f = semilogy(SNRdB_vec,SE_HARQ,'b-o');
 hold on;

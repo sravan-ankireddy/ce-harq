@@ -7,7 +7,7 @@ err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 1;
+nOut = 10;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -218,7 +218,7 @@ if (run_grid_search == 1)
     data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
     save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
 else
-    nFrames_ref = 1000;
+    nFrames_ref = 10000;
     res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames_ref)];
     data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
 end
