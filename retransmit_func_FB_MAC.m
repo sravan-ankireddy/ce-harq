@@ -1,6 +1,7 @@
-function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
+function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
+    int_state = seed;
     base_rate = R;
     M = bits_per_symbol(modulation);
     Avg_rounds_FB = 0;
@@ -125,6 +126,13 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 % encode to length <= K
                 comp_code_inner = conv_enc(err_seq, comp_rate);
 
+                % interleaver between inner and outer code
+                comp_code_inner = randintrlv(comp_code_inner,int_state);
+
+                % append zeros to match length to K
+                nz = K - length(comp_code_inner);
+                comp_code_inner = [comp_code_inner; zeros(nz,1)];
+
                 % perform outer coding with rate K/N
                 comp_code_outer = conv_enc(comp_code_inner, base_rate);
 
@@ -200,6 +208,11 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
             % first decode outer code
             outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
+            % remove the zero padding
+            outer_err_seq_est = outer_err_seq_est(1:end-nz);
+            
+            % deinterleaver between inner and outer code
+            outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
             
             % next decode inner : map to 1 - 2*c for soft
             if (dec_type == "hard")

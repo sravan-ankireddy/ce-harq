@@ -1,4 +1,4 @@
-cd ..; startup; cd conv;
+startup;
 
 global_settings = 1;
 
@@ -16,7 +16,7 @@ nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 4;
+max_rounds = 10;
 
 % Code parameters
 % targetCodeRate = 3/4;
@@ -25,7 +25,7 @@ N = 400;
 
 % R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "unquant";
+dec_type = "hard";
 
 % if (R == 1/2)
 %     if (max_rounds == 10)
@@ -69,7 +69,10 @@ BLER_vec_pr_FB_gs = zeros(gs_size,max_rounds,num_SNRdB);
 Avg_rounds_FB_gs = zeros(gs_size,num_SNRdB);
 
 
-modulation = 'BPSK';
+modulation = 'QPSK';
+k = bits_per_symbol(modulation);
+M = 2^k;
+
 mod_approx = 0;
 comm_mod = 1;
 

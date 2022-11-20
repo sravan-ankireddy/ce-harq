@@ -14,7 +14,7 @@ nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 4;
+max_rounds = 10;
 
 % Code parameters
 targetCodeRate = 3/4;
@@ -23,7 +23,7 @@ N = 400;
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "unquant";
+dec_type = "hard";
 
 if (R == 1/2)
     if (max_rounds == 10)

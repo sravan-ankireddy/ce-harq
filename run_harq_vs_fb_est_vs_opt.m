@@ -1,16 +1,16 @@
-cd ..; startup; cd conv;
+startup;
 
 global_settings = 1;
 
 % sim params
-nOut = 1;
+nOut = 100;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 10;
+max_rounds = 4;
 
 % Code parameters
 targetCodeRate = 3/4;
@@ -71,6 +71,8 @@ end
 num_SNRdB = length(SNRdB_vec);
 
 modulation = 'BPSK';
+k = bits_per_symbol(modulation);
+M = 2^k;
 mod_approx = 0;
 comm_mod = 1;
 
@@ -79,7 +81,7 @@ channel = "awgn";
 
 res_folder_prefix = 'bler_data';
 
-res_folder_fb = [res_folder_prefix sprintf('/%s/%d/fb/%s/%d',channel, N, modulation,nFrames)];
+res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation,nFrames)];
 
 if ~exist(res_folder_fb,'dir')
     mkdir(res_folder_fb);
@@ -127,7 +129,7 @@ if (err_thr_ada_scheme == "est")
     for i_rr = 1:size(err_thr_ada_list_est,1)
         remRounds = i_rr;
         for i_ada = 1:size(SNRdB_vec,2)
-            err_thr_ada_list_est(i_rr,i_ada) =  err_thr_select(data,acomp_table,targetCodeRate,SNRdB_vec(i_ada),remRounds,min_bler);
+            err_thr_ada_list_est(i_rr,i_ada) =  err_thr_select(data,acomp_table,targetCodeRate,SNRdB_vec(i_ada),max_rounds,remRounds,min_bler);
         end
     end
 end
@@ -138,6 +140,7 @@ end
 % err_thr_ada_list_est(4,:) = 0.075;
 
 run_fb;
+err_thr_ada_list_est_alg = err_thr_ada_list_est;
 
 BLER_FB_est = BLER_vec_FB;
 Avg_rounds_FB_est = Avg_rounds_FB;

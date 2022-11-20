@@ -23,7 +23,7 @@ N = 400;
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "hard";
+dec_type = "unquant";
 
 if (R == 1/2)
     if (max_rounds == 10)
@@ -60,7 +60,7 @@ end
 % SNRdB_low = -2;
 % SNRdB_high = SNRdB_high - 4;
 
-modulation = 'BPSK';
+modulation = 'QPSK';
 k = bits_per_symbol(modulation);
 M = 2^k;
 

@@ -17,4 +17,4 @@ disp(err_thr_ada_list_est);
 
 opt_thr = process_bler_data(gs_data);
 
-err_thr_ada_list = opt_thr.err_thr_opt
+err_thr_ada_list = opt_thr.err_thr_opt;

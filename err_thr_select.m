@@ -1,4 +1,4 @@
-function err_thr = err_thr_select(data,acomp_table,R,SNRdB,remRounds,min_bler)
+function err_thr = err_thr_select(data,acomp_table,R,SNRdB,tot_rounds,remRounds,min_bler)
 
     % Starting with simple scheme : for a given SNR and the round of communication, check
     % if the the error vector is sparse enough to be compressed based on
@@ -21,15 +21,15 @@ function err_thr = err_thr_select(data,acomp_table,R,SNRdB,remRounds,min_bler)
     [~,rate_ind] = min(abs(rates_data - R));
 
     % bler corresponding to max_rounds of HARQ with base rate
-    bler_data_R = squeeze(data.bler_data(rate_ind,end,snr_ind));
+    bler_data_R = squeeze(data.bler_data(rate_ind,tot_rounds,snr_ind));
     % disp ("base bler : ");
     % disp(bler_data');
     % disp("new bler : rem rounds ");
     % disp(remRounds);
     % disp(bler_data_R');
     % find all the rates with bler < min_bler
-    % rates_ind_list = find(bler_data <= bler_data_R);
-    rates_ind_list = find(bler_data <= min_bler);
+    rates_ind_list = find(bler_data <= bler_data_R);
+    % rates_ind_list = find(bler_data <= min_bler);
     if (~isempty(rates_ind_list))
     
     % bler_data
@@ -45,7 +45,7 @@ function err_thr = err_thr_select(data,acomp_table,R,SNRdB,remRounds,min_bler)
         max_rate = max(rates_data(rates_ind_list));
 
         % use this rate to calculate the rate of compression needed
-        Rc = max_rate/R;
+        Rc = max_rate/0.75;
 
         % use the compression LUT to pick the sparsity 
         rc_data = acomp_table.Rc_vec;
@@ -57,6 +57,16 @@ function err_thr = err_thr_select(data,acomp_table,R,SNRdB,remRounds,min_bler)
         [~, rc_ind] = min(abs(rc_data_feasible - Rc));
         
         err_thr = sp_data(rc_ind);
+
+        % if (SNRdB == 1.6)
+        %     disp("R")
+        %     disp(R)
+        %     disp("rem rounds")
+        %     disp(remRounds);
+        %     disp("err thr")
+        %     disp(err_thr);
+        %     pause(1)
+        % end
     else
         err_thr = 0;
     end

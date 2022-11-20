@@ -15,16 +15,14 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
     noiseVar = 1./(10.^(SNRdB/10));
     rep_coding = 0;
-    tc_rp = 0.2;
-    rc = 0;
 
     comp_rates = 1./(2:12);
     minR = comp_rates(end);
-    rc = 0;
 
-    % min_bler = 1e-4;
-    % harq_data = load('bler_data/awgn/400/hard/harq/BPSK/10000/harq_data_Conv_400_rate_0.833_rate_0.083_max_rounds_4.mat');
-    % acomp_table = load('lut_data/acomp_400_ns_100000.mat');
+    min_bler = 1e-4;
+    harq_data = load('bler_data/awgn/400/hard/harq/BPSK/10000/harq_data_Conv_400_rate_0.833_rate_0.083_max_rounds_4.mat');
+    acomp_table = load('lut_data/acomp_400_ns_100000.mat');
+    prev_reset_round = max_rounds;
     for i_r = 1:max_rounds-1
 
         num_err_FB = sum(data ~= double(data_est_FB));
@@ -32,12 +30,13 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
 
         % Adaptive err thr
         if (err_thr_ada_scheme == "est")
-            err_thr = err_thr_ada_list_est((max_rounds - i_r),i_s);
-            % if (fb_scheme == "FB")
-            %     err_thr = err_thr_select(harq_data,acomp_table,targetErrCodeRate,SNRdB,max_rounds - i_r,min_bler);
-            % else
-            %     err_thr = err_thr_select(harq_data,acomp_table,R,SNRdB,max_rounds - i_r,min_bler);
-            % end
+            % err_thr = err_thr_ada_list_est((max_rounds - i_r),i_s);
+            if (fb_scheme == "FB")
+                err_thr = err_thr_select(harq_data,acomp_table,targetErrCodeRate,SNRdB,max_rounds - prev_reset_round+1,max_rounds - i_r,min_bler);
+            else
+                err_thr = err_thr_select(harq_data,acomp_table,R,SNRdB,max_rounds,max_rounds - i_r,min_bler);
+            end
+            err_thr_ada_list_est((max_rounds - i_r),i_s) = err_thr;
         end
         % err_tr = 0.05;
         % Once the error becomes sparse enough, stay on FB scheme
@@ -45,19 +44,19 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
         % vector
         if (decision_switch == 0)
             if (err_per <= err_thr && err_thr > 0)
-                % disp("found sparse err ")
                 % Also check if the error is compressible
                 data_est_err_temp = mod(data+double(data_est_FB),2);
-                % iterative counts
+
+                % iteratively update counts
                 p_cur = max(1,round(100 * sum(data_est_err_temp)/length(data_est_err_temp)));
-                counts_temp = [100-p_cur p_cur];
-                err_seq_temp = arithenco(data_est_err_temp+1,counts_temp);
+                counts_iter = [100-p_cur p_cur];
+                err_seq_temp = arithenco(data_est_err_temp+1,counts_iter);
+
                 % err_seq_temp = arithenco(data_est_err_temp+1,counts);
                 if (length(err_seq_temp) < length(data_est_err_temp))
                     fb_scheme = "FB";
                     decision_switch = 1;
-                    counts = counts_temp;
-                    % disp(" switched to feedback ")
+                    counts = counts_iter;
                 else
                     fb_scheme = "HARQ";
                 end
@@ -84,6 +83,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                 num_err_FB = num_err_FB_prev;
             else
                 inner_scheme = "FB";
+                prev_reset_round = i_r;
                 % Empty the chase buffer if prev round reduced the errors
 
                 rxLLR_FB_buffer = [];
@@ -118,12 +118,9 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
                     end
                 else
                     comp_rate = comp_rates(end);
-                    min_ind = length(comp_rates) - 1;
                 end
-
-                comp_str = 'conv' + string(min_ind+1);
                 
-                % encode to length <= K
+                % encode to length <= N
                 comp_code = conv_enc(err_seq, comp_rate);
 
                 errDataInSeq = comp_code;
