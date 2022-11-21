@@ -7,6 +7,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,dec_type,da
     Avg_rounds_FB = 0;
     rxLLR_HARQ_buffer = rxLLR;
     rxLLR_FB_buffer = [];
+    rxLLR_FB_buffer_outer = [];
     data_est_FB = data_est;
     data_est_FB_prev = data_est;
     decision_switch = 0;
@@ -89,6 +90,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,dec_type,da
                 % Empty the chase buffer if prev round reduced the errors
 
                 rxLLR_FB_buffer = [];
+                rxLLR_FB_buffer_outer = [];
                 % Reset rvSeq start
                 rvSeq_ind = 1;
             end
@@ -208,6 +210,11 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,dec_type,da
 
             % first decode outer code
             outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
+
+            % Chase Combining outer -- disabled
+            rxLLR_FB_buffer_outer = [rxLLR_FB_buffer_outer outer_err_seq_est];
+            % outer_err_seq_est = round(mean(rxLLR_FB_buffer_outer, 2));
+
             % remove the zero padding
             outer_err_seq_est = outer_err_seq_est(1:end-nz);
             

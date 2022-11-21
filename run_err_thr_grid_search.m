@@ -1,20 +1,20 @@
 startup;
 
 global_settings = 1;
-run_grid_search = 1;
+run_grid_search = 0;
 
 err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 10;
+nOut = 100;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 10;
+max_rounds = 4;
 
 % Code parameters
 targetCodeRate = 3/4;
@@ -23,7 +23,7 @@ N = 400;
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "hard";
+dec_type = "unquant";
 
 if (R == 1/2)
     if (max_rounds == 10)
@@ -218,7 +218,7 @@ if (run_grid_search == 1)
     data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
     save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
 else
-    nFrames_ref = 10000;
+    nFrames_ref = 100000;
     res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames_ref)];
     data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
 end

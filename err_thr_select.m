@@ -45,7 +45,7 @@ function err_thr = err_thr_select(data,acomp_table,R,SNRdB,tot_rounds,remRounds,
         max_rate = max(rates_data(rates_ind_list));
 
         % use this rate to calculate the rate of compression needed
-        Rc = max_rate/0.75;
+        Rc = max_rate/R;
 
         % use the compression LUT to pick the sparsity 
         rc_data = acomp_table.Rc_vec;

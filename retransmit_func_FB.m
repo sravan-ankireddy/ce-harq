@@ -20,9 +20,9 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
     minR = comp_rates(end);
 
     min_bler = 1e-4;
-    harq_data = load('bler_data/awgn/400/hard/harq/BPSK/10000/harq_data_Conv_400_rate_0.833_rate_0.083_max_rounds_4.mat');
-    acomp_table = load('lut_data/acomp_400_ns_100000.mat');
-    prev_reset_round = max_rounds;
+    harq_data = load('bler_data/awgn/400/hard/harq/BPSK/100000/harq_data_Conv_400_rate_0.833_rate_0.083_max_rounds_4.mat');
+    acomp_table = load('lut_data/acomp_300_ns_100000.mat');
+    prev_reset_round = 0;%max_rounds;
     for i_r = 1:max_rounds-1
 
         num_err_FB = sum(data ~= double(data_est_FB));
@@ -32,11 +32,11 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
         if (err_thr_ada_scheme == "est")
             % err_thr = err_thr_ada_list_est((max_rounds - i_r),i_s);
             if (fb_scheme == "FB")
-                err_thr = err_thr_select(harq_data,acomp_table,targetErrCodeRate,SNRdB,max_rounds - prev_reset_round+1,max_rounds - i_r,min_bler);
+                err_thr = err_thr_select(harq_data,acomp_table,targetErrCodeRate,SNRdB,max_rounds - prev_reset_round,max_rounds - i_r,min_bler);
             else
                 err_thr = err_thr_select(harq_data,acomp_table,R,SNRdB,max_rounds,max_rounds - i_r,min_bler);
             end
-            err_thr_ada_list_est((max_rounds - i_r),i_s) = err_thr;
+            % err_thr_ada_list_est((max_rounds - i_r),i_s) = err_thr;
         end
         % err_tr = 0.05;
         % Once the error becomes sparse enough, stay on FB scheme
@@ -297,4 +297,5 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,dec_type,data,r
     out.Avg_rounds_FB = Avg_rounds_FB;
     out.num_err_FB = num_err_FB;
     out.num_err_vec = num_err_vec;
+    out.err_thr_ada_list_est = err_thr_ada_list_est;
 end
