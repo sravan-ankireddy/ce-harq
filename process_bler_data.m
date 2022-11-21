@@ -18,13 +18,13 @@ function [bler_out, ar_out, snr_out] = process_bler_data(data)
             bler_out.err_thr_opt(is) = bler_out.err_thr_opt(is - 1);
             bler_out.bler_opt(is) = bler_out.bler_opt(is - 1);
         else
-            % Pick the smallest err thr if more than one err_thr gives same bler
+            % Pick the largest err thr if more than one err_thr gives same bler
             min_ind_list = find(bler_data(:,is) == min_val);
             if (length(min_ind_list) > 1)
-                min_ind = min(min_ind_list);
+                min_ind = max(min_ind_list);
             end
-                bler_out.err_thr_opt(is) = err_thr_list(min_ind);
-                bler_out.bler_opt(is) = bler_data(min_ind,is);
+            bler_out.err_thr_opt(is) = err_thr_list(min_ind);
+            bler_out.bler_opt(is) = bler_data(min_ind,is);
         end
 
         % fallback : when expected bler is very less, skip FB and fallback to HARQ
