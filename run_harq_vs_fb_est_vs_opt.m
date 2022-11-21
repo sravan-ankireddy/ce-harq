@@ -52,21 +52,25 @@ elseif (R == 5/6)
         SNRdB_high = 6;
     end
 end
-% SNRdB_low = -2;
-% SNRdB_high = SNRdB_high - 4;
-
-SNRdB_step = 0.2;
-SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 channel = "awgn";
 
 if (dec_type == "hard")
-    SNRdB_vec = SNRdB_vec + 3;
+    SNRdB_low = SNRdB_low + 3;
+    SNRdB_high = SNRdB_high + 3;
 end
 
 if (channel == "rayleigh")
-    SNRdB_vec = SNRdB_vec + 9;
+    SNRdB_low = SNRdB_low + 9;
+    SNRdB_high = SNRdB_high + 9;
 end
+
+% FIX ME
+% SNRdB_low = 1;
+% SNRdB_high = 2;
+
+SNRdB_step = 0.2;
+SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 num_SNRdB = length(SNRdB_vec);
 
@@ -121,23 +125,6 @@ if ~exist(res_folder_harq_vs_fb,'dir')
     mkdir(res_folder_harq_vs_fb);
 end
 
-if (err_thr_ada_scheme == "est")
-    min_bler = 1e-5;
-    acomp_table = load('lut_data/acomp_400_ns_100000.mat');
-    harq_data_path = sprintf('bler_data/awgn/400/hard/harq/BPSK/10000/harq_data_Conv_%d_rate_0.833_rate_0.083_max_rounds_%d.mat',N,max_rounds);
-    data = load(harq_data_path);
-    for i_rr = 1:size(err_thr_ada_list_est,1)
-        remRounds = i_rr;
-        for i_ada = 1:size(SNRdB_vec,2)
-            err_thr_ada_list_est(i_rr,i_ada) =  err_thr_select(data,acomp_table,targetCodeRate,SNRdB_vec(i_ada),max_rounds,remRounds,min_bler);
-        end
-    end
-end
-
-% err_thr_ada_list_est(1,:) = 0.05;
-% err_thr_ada_list_est(2,:) = 0.05;
-% err_thr_ada_list_est(3,:) = 0.075;
-% err_thr_ada_list_est(4,:) = 0.075;
 
 run_fb;
 err_thr_ada_list_est_alg = err_thr_ada_list_est;
@@ -145,13 +132,13 @@ err_thr_ada_list_est_alg = err_thr_ada_list_est;
 BLER_FB_est = BLER_vec_FB;
 Avg_rounds_FB_est = Avg_rounds_FB;
 
-% run with err thr from grid search
+%% run with err thr from grid search
 
 err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 err_thr_ada_scheme = "opt";
 
-nFrames_ref = 10000;
+nFrames_ref = 100000;
 res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames_ref)];
 data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
 gs_data = load(data_file_name_gs);
@@ -159,6 +146,12 @@ gs_data = load(data_file_name_gs);
 opt_thr = process_bler_data(gs_data);
 
 err_thr_ada_list = opt_thr.err_thr_opt;
+
+% extract and match values for SNR
+snr_start_ind = find(gs_data.snr_data == SNRdB_low);
+snr_end_ind = find(gs_data.snr_data == SNRdB_high);
+err_thr_ada_list = err_thr_ada_list(snr_start_ind:snr_end_ind);
+
 err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
 run_fb;
 

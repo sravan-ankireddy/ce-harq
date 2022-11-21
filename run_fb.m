@@ -49,6 +49,8 @@ BLER_vec_pr_FB = zeros(max_rounds,num_SNRdB);
 
 Avg_rounds_FB = zeros(1,num_SNRdB);
 
+err_thr_ada_list_est_init = err_thr_ada_list_est;
+err_thr_ada_list_est_vals = err_thr_ada_list_est;
 tic;
 for i_s = 1:length(SNRdB_vec)
     SNRdB = round(SNRdB_vec(i_s),4);
@@ -68,7 +70,7 @@ for i_s = 1:length(SNRdB_vec)
     % Print status
     fprintf('Status %0.2f %% done \n', round(i_s/num_SNRdB*100));
     
-    BER_FB = 0; BLER_FB = 0;   
+    BER_FB = 0; BLER_FB = 0; err_thr_FB = err_thr_ada_list_est_init;
     BER_FB_per_round = zeros(max_rounds,1); BLER_FB_per_round = zeros(max_rounds,1);
     % Count the average rounds for successful decoding
     num_ar_fb = 0;
@@ -140,7 +142,7 @@ for i_s = 1:length(SNRdB_vec)
             num_err_FB = num_err;
             num_err_FB_per_round = zeros(max_rounds,1);
             num_err_FB_per_round(1) = num_err;
-            
+            err_thr_ada_list_est_cur = err_thr_ada_list_est_init;
             % Start retransmission if 1st round failed
             
             if (num_err > 0 && max_rounds > 1)
@@ -148,6 +150,7 @@ for i_s = 1:length(SNRdB_vec)
                 num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
                 num_err_FB = out.num_err_FB;
                 num_err_FB_per_round = out.num_err_vec;
+                err_thr_ada_list_est_cur = out.err_thr_ada_list_est;
             end
 
             BER_FB = BER_FB + num_err_FB;
@@ -157,6 +160,8 @@ for i_s = 1:length(SNRdB_vec)
             BER_FB_per_round = BER_FB_per_round + num_err_FB_per_round;
 
             BLER_FB_per_round = BLER_FB_per_round + (num_err_FB_per_round > 0);
+
+            err_thr_FB = err_thr_FB + err_thr_ada_list_est_cur
         end
         if (BLER_FB > nMinFerr)
             break;
@@ -171,6 +176,8 @@ for i_s = 1:length(SNRdB_vec)
 
     BER_vec_pr_FB(:,i_s) = BER_FB_per_round/(K*(i_on*nMiniFrames));
     BLER_vec_pr_FB(:,i_s) = BLER_FB_per_round/(i_on*nMiniFrames);
+
+    % err_thr_ada_list_est(:,i_s) = err_thr_FB(:,i_s)/(i_on*nMiniFrames);
 end
 
 
