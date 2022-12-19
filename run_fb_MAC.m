@@ -6,6 +6,7 @@ if ~exist('global_settings','var')
     targetCodeRate = 0.5;
     
     N = 400;
+    code_type = "Conv";
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     combining_scheme = "CC";

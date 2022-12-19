@@ -1,9 +1,9 @@
 startup;
 
 global_settings = 1;
-run_grid_search = 0;
+run_grid_search = 1;
 
-err_thr_grid = 0.000:0.005:0.09;
+err_thr_grid = 0.000:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
@@ -19,11 +19,11 @@ max_rounds = 4;
 % Code parameters
 targetCodeRate = 3/4;
 
-N = 400;
+N = 800;
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "hard";
+dec_type = "unquant";
 
 if (R == 1/2)
     if (max_rounds == 10)
