@@ -17,14 +17,14 @@ nFrames = nOut*nMiniFrames;
 max_rounds = 4;
 
 % Code parameters
-targetCodeRate = 3/4;
+targetCodeRate = 0.9;
 
 N = 800;
 code_type = "LDPC";
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "hard";
+dec_type = "unquant";
 
 modulation = 'BPSK';
 k = bits_per_symbol(modulation);
@@ -32,19 +32,29 @@ M = 2^k;
 
 % LDPC settings
 if (code_type == "LDPC")
+    err_thr_grid = 0.000:0.01:0.2;
+
+    % FIX ME
+    ncb = 1;
+    Nref = 25344;
+    max_iter = 6;
 
     modulation = 'BPSK';
     k = bits_per_symbol(modulation);
     M = 2^k;
 
     % PRB settings
-    tarCodeLen = 1024;
+    tarCodeLen = 960;
     nlayers = 1;
     NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
     nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
 
     % use nrTBS to get K,R
-    tbs = nrTBS('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetCodeRate); %no. bits in transportBlock
+    if (modulation == 'BPSK')
+        tbs = nrTBS('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetCodeRate); %no. bits in transportBlock
+    else
+        tbs = nrTBS(modulation,nlayers,nPRB,NREPerPRB,targetCodeRate); %no. bits in transportBlock
+    end
 
     % CodeLen based on PRB settings and modulation
     N = nPRB*NREPerPRB*k;
@@ -52,15 +62,15 @@ if (code_type == "LDPC")
     R = K/N;
 
     % Choose the combining scheme 
-    combining_scheme = "IR";
+    combining_scheme = "CC";
     if (combining_scheme == "IR")
         rvSeq = [0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1];
         rvSeq = rvSeq(1:max_rounds);
     else
         rvSeq = zeros(1,max_rounds);
     end
-    SNRdB_low = 10;
-    SNRdB_high = 14;
+    SNRdB_low = -4;
+    SNRdB_high = 2;
     rv = 0;
 end
 
@@ -137,9 +147,9 @@ res_folder_prefix = 'bler_data_MAC_master';
 res_folder_fb = [res_folder_prefix sprintf('/%s/%s/%d/%s/fb/%s/%d',code_type, channel, N, dec_type, modulation, nFrames)];
 
 if (err_thr_ada_scheme == "est")
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%d/%s/harq_vs_fb_est/%s/%d',channel, N, dec_type, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%s/%d/%s/harq_vs_fb_est/%s/%d',code_type, channel, N, dec_type, modulation,nFrames)];
 else
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%d/%s/harq_vs_fb_opt/%s/%d',channel, N, dec_type, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%s/%d/%s/harq_vs_fb_opt/%s/%d',code_type, channel, N, dec_type, modulation,nFrames)];
 end
 
 if ~exist(res_folder_fb,'dir')
@@ -188,9 +198,9 @@ if (run_grid_search == 1)
     ylabel('BLER');
     grid on;
     legend(leg_str);
-    title_str = sprintf('FB-%s scheme : BLER Conv %d mod. %s Rate %.3f max.rounds %d',combining_scheme, N, modulation, R, max_rounds);
+    title_str = sprintf('FB-%s scheme : BLER %s %d mod. %s Rate %.3f max.rounds %d',code_type, combining_scheme, N, modulation, R, max_rounds);
     title(title_str);
-    bler_common_str = [res_folder_fb sprintf('/FB_BLER_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',N,R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
+    bler_common_str = [res_folder_fb sprintf('/FB_BLER_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',code_type, N, R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
     filename_BLER_fig = bler_common_str + ".fig";
     filename_BLER_png = bler_common_str + ".png";
 
@@ -210,9 +220,9 @@ if (run_grid_search == 1)
     ylabel('Avg. rounds');
     grid on;
     legend(leg_str);
-    title_str = sprintf('FB-%s scheme : Avg rounds Conv %d mod. %s Rate %.3f max. rounds %d',combining_scheme, N, modulation, R, max_rounds);
+    title_str = sprintf('FB-%s scheme : Avg rounds %s %d mod. %s Rate %.3f max. rounds %d',code_type, combining_scheme, N, modulation, R, max_rounds);
     title(title_str);
-    ar_common_str = [res_folder_fb sprintf('/Avg_rounds_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',N,R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
+    ar_common_str = [res_folder_fb sprintf('/Avg_rounds_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',code_type, N, R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
     filename_AR_fig = ar_common_str + ".fig";
     filename_AR_png = ar_common_str + ".png";
 
@@ -233,9 +243,9 @@ if (run_grid_search == 1)
     ylabel('Spectral Efficiency [bits/s/Hz]');
     grid on;
     legend(leg_str);
-    title_str = sprintf('FB-%s scheme : Avg rounds Conv %d mod. %s Rate %.3f max. rounds %d',combining_scheme, N, modulation, R, max_rounds);
+    title_str = sprintf('FB-%s scheme : Avg rounds %s %d mod. %s Rate %.3f max. rounds %d',code_type, combining_scheme, N, modulation, R, max_rounds);
     title(title_str);
-    se_common_str = [res_folder_fb sprintf('/SE_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',N,R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
+    se_common_str = [res_folder_fb sprintf('/SE_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',code_type, N, R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
     filename_SE_fig = se_common_str + ".fig";
     filename_SE_png = se_common_str + ".png";
 
@@ -250,12 +260,12 @@ end
 
 % Store data
 if (run_grid_search == 1)
-    data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
+    data_file_name_gs = [res_folder_fb sprintf('/fb_data_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat',code_type, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
     save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
 else
     nFrames_ref = 100000;
     res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames_ref)];
-    data_file_name_gs = [res_folder_fb sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', N,R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
+    data_file_name_gs = [res_folder_fb sprintf('/fb_data_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', code_type, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
 end
 
-run_harq_vs_fb_MAC;
+run_harq_vs_fb_MAC_master;
