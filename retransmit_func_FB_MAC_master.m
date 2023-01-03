@@ -1,4 +1,4 @@
-function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code_type,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
+function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code_type,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
     int_state = seed;
@@ -302,10 +302,13 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
         else
             % Retransmit
             % generate new tx data
+            
             if (code_type == "Conv")         
                 [dataIn, rr_len] = conv_enc(data, R);
             else
                 % generate new tx data with new rv
+                rv = rvSeq(i_r+1);
+                
                 bgn = bgn_select(K,R);
                 dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
             end

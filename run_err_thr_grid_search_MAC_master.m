@@ -7,8 +7,8 @@ err_thr_grid = 0.000:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 1;
-nMiniFrames = 100;
+nOut = 100;
+nMiniFrames = 1000;
 
 nMinFerr = 500;
 
@@ -17,7 +17,7 @@ nFrames = nOut*nMiniFrames;
 max_rounds = 4;
 
 % Code parameters
-targetCodeRate = 0.9;
+targetCodeRate = 0.5;
 
 N = 800;
 code_type = "LDPC";
@@ -32,6 +32,9 @@ M = 2^k;
 
 % LDPC settings
 if (code_type == "LDPC")
+    targetCodeRate = 1/2;
+    K = round(N*targetCodeRate);
+    R = targetCodeRate;
     err_thr_grid = 0.000:0.01:0.2;
 
     % FIX ME
@@ -69,40 +72,65 @@ if (code_type == "LDPC")
     else
         rvSeq = zeros(1,max_rounds);
     end
-    SNRdB_low = -4;
-    SNRdB_high = 2;
+    % SNRdB_low = -4;
+    % SNRdB_high = 2;
+    if (targetCodeRate == 1/3)
+        if (max_rounds == 10)
+            SNRdB_low = -10;
+            SNRdB_high = -4;
+        elseif (max_rounds == 4)
+            SNRdB_low = -8;
+            SNRdB_high = -4;
+        end
+    elseif (targetCodeRate == 1/2)
+        if (max_rounds == 4)
+            SNRdB_low = -8;
+            SNRdB_high = -2;
+        end   
+    elseif (targetCodeRate == 3/4)
+        if (max_rounds == 4)
+            SNRdB_low = -6;
+            SNRdB_high = 0;
+        end
+    elseif (targetCodeRate == 0.9)
+        if (max_rounds == 4)
+            SNRdB_low = -4;
+            SNRdB_high = 2;
+        end
+    end
     rv = 0;
 end
-
-if (R == 1/2)
-    if (max_rounds == 10)
-        SNRdB_low = -10;
-        SNRdB_high = -4;
-    elseif (max_rounds == 4)
-        SNRdB_low = -6;
-        SNRdB_high = 0;
-    end
-elseif (R == 1/3)
-    SNRdB_low = -12;
-    SNRdB_high = -6;
-elseif (R == 1/4)
-    SNRdB_low = -16;
-    SNRdB_high = -8;
-elseif (R == 3/4)
-    if (max_rounds == 10)
-        SNRdB_low = -8;
-        SNRdB_high = -2;
-    elseif (max_rounds == 4)
-        SNRdB_low = -4;
-        SNRdB_high = 2;
-    end
-elseif (R == 5/6)
-    if (max_rounds == 10)
-        SNRdB_low = -8;
-        SNRdB_high = 2;
-    elseif (max_rounds == 4)
-        SNRdB_low = -4;
-        SNRdB_high = 6;
+if (code_type == "Conv")
+    if (R == 1/2)
+        if (max_rounds == 10)
+            SNRdB_low = -10;
+            SNRdB_high = -4;
+        elseif (max_rounds == 4)
+            SNRdB_low = -6;
+            SNRdB_high = 0;
+        end
+    elseif (R == 1/3)
+        SNRdB_low = -12;
+        SNRdB_high = -6;
+    elseif (R == 1/4)
+        SNRdB_low = -16;
+        SNRdB_high = -8;
+    elseif (R == 3/4)
+        if (max_rounds == 10)
+            SNRdB_low = -8;
+            SNRdB_high = -2;
+        elseif (max_rounds == 4)
+            SNRdB_low = -4;
+            SNRdB_high = 2;
+        end
+    elseif (R == 5/6)
+        if (max_rounds == 10)
+            SNRdB_low = -8;
+            SNRdB_high = 2;
+        elseif (max_rounds == 4)
+            SNRdB_low = -4;
+            SNRdB_high = 6;
+        end
     end
 end
 
@@ -234,7 +262,7 @@ if (run_grid_search == 1)
     
     leg_str = {};
     for i_e = 1:length(err_thr_grid)
-        SE = (K*k/N) *(1 - squeeze(BLER_vec_FB_gs(i_e,:))) ./squeeze(Avg_rounds_FB_gs(i_e,:))
+        SE = (K*k/N) *(1 - squeeze(BLER_vec_FB_gs(i_e,:))) ./squeeze(Avg_rounds_FB_gs(i_e,:));
         semilogy(SNRdB_vec,SE);
         hold on;
         leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
