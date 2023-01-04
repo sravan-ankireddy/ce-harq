@@ -17,10 +17,10 @@ nFrames = nOut*nMiniFrames;
 max_rounds = 4;
 
 % Code parameters
-targetCodeRate = 0.5;
+targetCodeRate = 1/3;
 
 N = 800;
-code_type = "LDPC";
+code_type = "Conv";
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -32,7 +32,8 @@ M = 2^k;
 
 % LDPC settings
 if (code_type == "LDPC")
-    targetCodeRate = 1/2;
+    dec_type = "unquant";
+    targetCodeRate = 1/3;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     err_thr_grid = 0.000:0.01:0.2;
