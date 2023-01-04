@@ -7,7 +7,7 @@ err_thr_grid = 0.000:0.005:0.095;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 10;
+nOut = 100;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -17,11 +17,11 @@ nFrames = nOut*nMiniFrames;
 max_rounds = 4;
 
 % Code parameters
-targetCodeRate = 3/4;
+targetCodeRate = 1/3;
 
 N = 800;
 code_type = "Conv";
-feedback_mode = "PHY"; % MAC/PHY
+feedback_mode = "MAC"; % MAC/PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -34,7 +34,7 @@ M = 2^k;
 % LDPC settings
 if (code_type == "LDPC")
     dec_type = "unquant";
-    targetCodeRate = 1/3;
+    targetCodeRate = 3/4;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     err_thr_grid = 0.000:0.01:0.2;
@@ -172,14 +172,14 @@ comm_mod = 1;
 
 err_thr_ada_scheme = "opt";
 
-res_folder_prefix = 'bler_data_master';
+res_folder_prefix = 'bler_data_MAC_master';
 
-res_folder_fb = [res_folder_prefix sprintf('/%s/%s/%s/%d/%s/fb/%s/%d',feedback_mode, code_type, channel, N, dec_type, modulation, nFrames)];
+res_folder_fb = [res_folder_prefix sprintf('/%s/%s/%d/%s/fb/%s/%d',code_type, channel, N, dec_type, modulation, nFrames)];
 
 if (err_thr_ada_scheme == "est")
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%s/%s/%d/%s/harq_vs_fb_est/%s/%d',feedback_mode, code_type, channel, N, dec_type, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%s/%d/%s/harq_vs_fb_est/%s/%d',code_type, channel, N, dec_type, modulation,nFrames)];
 else
-    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%s/%s/%d/%s/harq_vs_fb_opt/%s/%d',feedback_mode, code_type, channel, N, dec_type, modulation,nFrames)];
+    res_folder_harq_vs_fb = [res_folder_prefix sprintf('/%s/%s/%d/%s/harq_vs_fb_opt/%s/%d',code_type, channel, N, dec_type, modulation,nFrames)];
 end
 
 if ~exist(res_folder_fb,'dir')

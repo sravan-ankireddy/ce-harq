@@ -1,4 +1,4 @@
-function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code_type,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
+function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code_type,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
     int_state = seed;
@@ -116,8 +116,14 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
 
                 % find the available rate for inner code
                 if (code_type == "Conv")
+                    % PHY-MAC mode
+                    if (feedback_mode == "MAC")
+                        len_available = K;
+                    else
+                        len_available = N;
+                    end
                     % find the smallest rate for compression : coding will be only for comp -> K, not N
-                    targetErrCodeRate = (length(err_seq)+3)/K;
+                    targetErrCodeRate = (length(err_seq)+3)/len_available;
                     if (targetErrCodeRate >= minR)
                         % get the smallest rate possible
                         [~, min_ind] = min(abs(targetErrCodeRate - comp_rates));
@@ -133,22 +139,27 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
                         comp_rate = comp_rates(end);
                         min_ind = length(comp_rates) - 1;
                     end
+                    if (feedback_mode == "MAC")
+                        % encode to length <= K
+                        comp_code_inner = conv_enc(err_seq, comp_rate);
 
-                    % encode to length <= K
-                    comp_code_inner = conv_enc(err_seq, comp_rate);
+                        % interleaver between inner and outer code
+                        comp_code_inner = randintrlv(comp_code_inner,int_state);
 
-                    % interleaver between inner and outer code
-                    comp_code_inner = randintrlv(comp_code_inner,int_state);
+                        % append zeros to match length to K
+                        nz = K - length(comp_code_inner);
+                        comp_code_inner = [comp_code_inner; zeros(nz,1)];
 
-                    % append zeros to match length to K
-                    nz = K - length(comp_code_inner);
-                    comp_code_inner = [comp_code_inner; zeros(nz,1)];
+                        % perform outer coding with rate K/N
+                        comp_code_outer = conv_enc(comp_code_inner, base_rate);
 
-                    % perform outer coding with rate K/N
-                    comp_code_outer = conv_enc(comp_code_inner, base_rate);
-
-                    errDataInSeq = comp_code_outer;
+                        errDataInSeq = comp_code_outer;
+                    else
+                        % Directly encode to length <= N
+                        errDataInSeq = conv_enc(err_seq, comp_rate);
+                    end
                 else
+                    % FIX ME : only PHY now for LDPC
                     % find the smallest rate for compression : coding will be only for comp -> K, not N
                     targetErrCodeRate = length(err_seq)/N;
                     k = bits_per_symbol(modulation);
@@ -251,22 +262,26 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
 
             % Decoding
             if (code_type == "Conv")
-                % first decode outer code
-                outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
+                if (feedback_mode == "MAC")
+                    % first decode outer code
+                    outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
 
-                % remove the zero padding
-                outer_err_seq_est = outer_err_seq_est(1:end-nz);
-                
-                % deinterleaver between inner and outer code
-                outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
-                
-                % next decode inner : map to 1 - 2*c for soft
-                if (dec_type == "hard")
-                    rxLLR_FB = outer_err_seq_est;
+                    % remove the zero padding
+                    outer_err_seq_est = outer_err_seq_est(1:end-nz);
+                    
+                    % deinterleaver between inner and outer code
+                    outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
+                    
+                    % next decode inner : map to 1 - 2*c for soft
+                    if (dec_type == "hard")
+                        rxLLR_FB = outer_err_seq_est;
+                    else
+                        rxLLR_FB = 1 - 2*outer_err_seq_est;
+                    end
+                    inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
                 else
-                    rxLLR_FB = 1 - 2*outer_err_seq_est;
+                    inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
                 end
-                inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
             else
                  % Rate recovery and Decoding
                 rxLLR_FB_rr = nrRateRecoverLDPC(rxLLR_FB, K_err, R_err, rv, modulation, nlayers, ncb, Nref);
