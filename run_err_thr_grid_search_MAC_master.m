@@ -7,7 +7,7 @@ err_thr_grid = 0.000:0.005:0.095;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 10;
+nOut = 100;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -17,11 +17,11 @@ nFrames = nOut*nMiniFrames;
 max_rounds = 4;
 
 % Code parameters
-targetCodeRate = 3/4;
+targetCodeRate = 1/2;
 
 N = 800;
 code_type = "Conv";
-feedback_mode = "PHY"; % MAC/PHY
+feedback_mode = "MAC"; % MAC/PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -33,12 +33,14 @@ M = 2^k;
 
 % LDPC settings
 if (code_type == "LDPC")
+    feedback_mode = "PHY";
     dec_type = "unquant";
-    targetCodeRate = 1/3;
+    targetCodeRate = 1/2;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     err_thr_grid = 0.000:0.01:0.2;
-
+    gs_size = length(err_thr_grid);
+    
     % FIX ME
     ncb = 1;
     Nref = 25344;
