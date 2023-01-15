@@ -159,13 +159,20 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
                         errDataInSeq = conv_enc(err_seq, comp_rate);
                     end
                 else
-                    % FIX ME : only PHY now for LDPC
+                    % PHY-MAC mode
+                    if (feedback_mode == "MAC")
+                        len_available = K;
+                    else
+                        len_available = N;
+                    end
+
                     % find the smallest rate for compression : coding will be only for comp -> K, not N
-                    targetErrCodeRate = length(err_seq)/N;
+                    targetErrCodeRate = length(err_seq)/len_available;
+                    
                     k = bits_per_symbol(modulation);
                     M = 2^k;
                     % PRB settings
-                    tarCodeLen = 960;
+                    tarCodeLen = len_available;
                     nlayers = 1;
                     NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
                     nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
