@@ -20,7 +20,7 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-code_type = "Conv";
+code_type = "LDPC";
 feedback_mode = "MAC"; % MAC/PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
@@ -33,7 +33,7 @@ M = 2^k;
 
 % LDPC settings
 if (code_type == "LDPC")
-    feedback_mode = "PHY";
+    % feedback_mode = "PHY";
     dec_type = "unquant";
     targetCodeRate = 1/2;
     K = round(N*targetCodeRate);
