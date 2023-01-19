@@ -20,31 +20,33 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-code_type = "LDPC";
-feedback_mode = "MAC"; % MAC/PHY
+code_type = "Conv";
+feedback_mode = "PHY"; % MAC/PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "unquant";
+dec_type = "hard";
 
 modulation = 'BPSK';
 k = bits_per_symbol(modulation);
 M = 2^k;
 
+% FIX ME
+ncb = 1;
+Nref = 25344;
+rvSeq = zeros(1,max_rounds);
+max_iter = 6;
+nlayers = 1;
+
 % LDPC settings
 if (code_type == "LDPC")
-    % feedback_mode = "PHY";
+    feedback_mode = "PHY";
     dec_type = "unquant";
     targetCodeRate = 1/2;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     err_thr_grid = 0.000:0.01:0.2;
     gs_size = length(err_thr_grid);
-    
-    % FIX ME
-    ncb = 1;
-    Nref = 25344;
-    max_iter = 6;
 
     modulation = 'BPSK';
     k = bits_per_symbol(modulation);
@@ -52,7 +54,6 @@ if (code_type == "LDPC")
 
     % PRB settings
     tarCodeLen = 960;
-    nlayers = 1;
     NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
     nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
 
@@ -114,8 +115,8 @@ if (code_type == "Conv")
             SNRdB_high = 0;
         end
     elseif (R == 1/3)
-        SNRdB_low = -12;
-        SNRdB_high = -6;
+        SNRdB_low = -9;
+        SNRdB_high = -3;
     elseif (R == 1/4)
         SNRdB_low = -16;
         SNRdB_high = -8;
