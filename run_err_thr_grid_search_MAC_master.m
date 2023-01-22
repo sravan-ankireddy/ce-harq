@@ -8,7 +8,7 @@ gs_size = length(err_thr_grid);
 
 % sim params
 nOut = 1;
-nMiniFrames = 2;
+nMiniFrames = 200;
 
 nMinFerr = 500;
 
@@ -20,8 +20,8 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "no_code"; % no_code/Conv/LDPC
-MAC_code = "no_code"; % no_code/Conv/LDPC
+PHY_code = "Conv"; % no_code/Conv/LDPC
+MAC_code = "Conv"; % no_code/Conv/LDPC
 
 if (MAC_code == "no_code")
     run_grid_search = 0;
@@ -32,7 +32,7 @@ feedback_mode = "PHY"; % MAC/PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "soft";
+dec_type = "hard";
 
 modulation = 'BPSK';
 k = bits_per_symbol(modulation);

@@ -79,7 +79,7 @@ for i_s = 1:length(SNRdB_vec)
 
     for i_on = 1:nOut
     
-        parfor i_n = 1:nMiniFrames
+        for i_n = 1:nMiniFrames
             
             seed = i_n + (i_on-1)*nMiniFrames;
             
