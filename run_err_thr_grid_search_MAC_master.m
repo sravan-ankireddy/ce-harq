@@ -8,7 +8,7 @@ gs_size = length(err_thr_grid);
 
 % sim params
 nOut = 1;
-nMiniFrames = 200;
+nMiniFrames = 2;
 
 nMinFerr = 500;
 
@@ -32,7 +32,7 @@ feedback_mode = "PHY"; % MAC/PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
-dec_type = "hard";
+dec_type = "soft";
 
 modulation = 'BPSK';
 k = bits_per_symbol(modulation);
@@ -143,6 +143,8 @@ elseif (PHY_code == "Conv")
         end
     end
 elseif (PHY_code == "no_code")
+    targetCodeRate = 1;
+    K = N;
     R = 1;
     if (max_rounds == 4)
         SNRdB_low = 0;
@@ -153,7 +155,7 @@ end
 % SNRdB_low = -2;
 % SNRdB_high = SNRdB_high - 4;
 
-SNRdB_step = 0.2;
+SNRdB_step = 2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 channel = "awgn";

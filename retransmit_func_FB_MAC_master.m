@@ -464,10 +464,12 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
             % Rate recovery and Decoding
             if (PHY_code == "Conv")
                 data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);
-            else                
+            elseif (PHY_code == "LDPC")             
                 % Decoding
                 bgn = bgn_select(K,R);
                 [data_est_FB, crc_chk_FB_HARQ] = nrldpc_dec(rxLLR_FB_HARQ, K, max_iter, bgn);
+            elseif (PHY_code == "no_code")
+                data_est_FB = rxLLR_FB_HARQ > 0;
             end
 
             % Check for errors : post descrambling

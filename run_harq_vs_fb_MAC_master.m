@@ -34,14 +34,14 @@ grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
-leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+leg_FB = sprintf('FB-(%s PHY, %s MAC) BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
 legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
 
-title_name = sprintf('FB-%s : BLER %s %d, mod. %s, Rate %.3f, errthr : grid search %s, max. rounds %d',code_type, combining_scheme, N, modulation, R,err_thr_ada_scheme,  max_rounds);
+title_name = sprintf('FB-(%s PHY, %s MAC) : BLER %s %d, mod. %s, Rate %.3f, errthr : grid search %s, max. rounds %d',PHY_code, MAC_code, combining_scheme, N, modulation, R,err_thr_ada_scheme,  max_rounds);
 title(title_name,'FontSize',fs);
 
-common_str = [res_folder_harq_vs_fb sprintf('/BLER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_type, N, R, err_thr_ada_scheme, max_rounds)];
+common_str = [res_folder_harq_vs_fb sprintf('/BLER_HARQ_vs_FB_%s_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',PHY_code, MAC_code, N, R, err_thr_ada_scheme, max_rounds)];
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
@@ -63,14 +63,14 @@ grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ-%s Avg Rounds %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
-leg_FB = sprintf('FB-%s Avg Rounds %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+leg_FB = sprintf('FB-(%s PHY, %s MAC) Avg Rounds %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
 legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
 
-title_name = sprintf('FB-%s : Avg rounds %s %d, mod. %s, Rate %.3f, errthr : grid search %s , max. rounds %d',combining_scheme, code_type, N, modulation, R, err_thr_ada_scheme, max_rounds);
+title_name = sprintf('FB-(%s PHY, %s MAC) : Avg rounds %s %d, mod. %s, Rate %.3f, errthr : grid search %s , max. rounds %d',combining_scheme, PHY_code, MAC_code, N, modulation, R, err_thr_ada_scheme, max_rounds);
 title(title_name,'FontSize',fs);
 
-common_str = [res_folder_harq_vs_fb sprintf('/Avg_rounds_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d', code_type, N, R, err_thr_ada_scheme, max_rounds)];
+common_str = [res_folder_harq_vs_fb sprintf('/Avg_rounds_HARQ_vs_FB_%s_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d', PHY_code, MAC_code, N, R, err_thr_ada_scheme, max_rounds)];
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
@@ -94,14 +94,14 @@ grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ-%s SE %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
-leg_FB = sprintf('FB-%s SE %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+leg_FB = sprintf('FB-(%s PHY, %s MAC) SE %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
 legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
 
-title_name = sprintf('FB-%s : Spectral Efficiency %s %d, mod. %s, Rate %.3f, errthr : grid search %s , max. rounds %d',code_type, combining_scheme, N, modulation, R, err_thr_ada_scheme, max_rounds);
+title_name = sprintf('FB-(%s PHY, %s MAC) : Spectral Efficiency %s %d, mod. %s, Rate %.3f, errthr : grid search %s , max. rounds %d',PHY_code, MAC_code, combining_scheme, N, modulation, R, err_thr_ada_scheme, max_rounds);
 title(title_name,'FontSize',fs);
 
-common_str = [res_folder_harq_vs_fb sprintf('/Spectral Efficiency_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_type, N, R, err_thr_ada_scheme, max_rounds)];
+common_str = [res_folder_harq_vs_fb sprintf('/Spectral Efficiency_HARQ_vs_FB_%s_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',PHY_code, MAC_code, N, R, err_thr_ada_scheme, max_rounds)];
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
