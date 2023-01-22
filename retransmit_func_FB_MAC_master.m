@@ -1,9 +1,10 @@
-function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code_type,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
+function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_code,MAC_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
     int_state = seed;
     base_rate = R;
-    M = bits_per_symbol(modulation);
+    k = bits_per_symbol(modulation);
+    M = 2^k;
     Avg_rounds_FB = 0;
     rxLLR_HARQ_buffer = rxLLR;
     rxLLR_FB_buffer = [];
@@ -27,6 +28,8 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
     % FIX ME
     rv = 0;
     rvSeq_ind = 1;
+
+    NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 
     min_bler = 1e-4;
     harq_data_path = sprintf('bler_data/awgn/%d/%s/harq/%s/100000/harq_data_Conv_%d_rate_0.833_rate_0.083_max_rounds_%d.mat', N, dec_type, modulation, N, max_rounds);
@@ -115,7 +118,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
                 assert(length(err_seq) < length(data_est_err),'Compression failed in FB round %d',i_r);
 
                 % find the available rate for inner code
-                if (code_type == "Conv")
+                if (PHY_code == "Conv")
                     % PHY-MAC mode
                     if (feedback_mode == "MAC")
                         len_available = K;
@@ -139,6 +142,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
                         comp_rate = comp_rates(end);
                         min_ind = length(comp_rates) - 1;
                     end
+
                     if (feedback_mode == "MAC")
                         % encode to length <= K
                         comp_code_inner = conv_enc(err_seq, comp_rate);
@@ -158,46 +162,103 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
                         % Directly encode to length <= N
                         errDataInSeq = conv_enc(err_seq, comp_rate);
                     end
-                else
+                elseif (PHY_code == "LDPC")
                     % PHY-MAC mode
                     if (feedback_mode == "MAC")
-                        len_available = K;
-                    else
-                        len_available = N;
-                    end
 
-                    % find the smallest rate for compression : coding will be only for comp -> K, not N
-                    targetErrCodeRate = length(err_seq)/len_available;
-                    
-                    k = bits_per_symbol(modulation);
-                    M = 2^k;
-                    % PRB settings
-                    tarCodeLen = len_available;
-                    nlayers = 1;
-                    NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
-                    nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
+                        % inner coding 
+                        if (MAC_code == "LDPC")
+                            % find the smallest rate for compression : coding will be only for comp -> K, not N
+                            targetErrCodeRate = length(err_seq)/K;
+                            
+                            % PRB settings
+                            tarCodeLen = K;
+                            nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
 
-                    % Pick nPRB such that K_err >= length(err_seq)
-                    if (modulation == 'BPSK')
-                        nPRB_out = nPRB_select('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                            % Pick nPRB such that K_err >= length(err_seq)
+                            if (modulation == 'BPSK')
+                                nPRB_out = nPRB_select('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                            else
+                                nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                            end
+                            tbs_err = nPRB_out.tbs_err;
+                            nPRB_err = nPRB_out.nPRB;
+                            
+                            K_err = tbs_err; %no. bits in transportBlock
+                            N_err = nPRB_err*NREPerPRB*k;
+                            R_err = K_err/N_err;
+                
+                            bgn_err = bgn_select(K_err,R_err);
+                
+                            % Padding with zeroes
+                            nz_err = K_err - length(err_seq);
+                            err_seq_n_err = [err_seq; zeros(nz_err,1)];
+                            
+                            % Encoding and Rate matching
+                            errDataInSeq_err = nrldpc_enc(err_seq_n_err, R_err, modulation, rv, bgn_err, nlayers);
+                        end
+
+                        % outer coding with rate K/N
+                        if (PHY_code == "LDPC")
+                            % PRB settings
+                            tarCodeLen = N;
+                            nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
+
+                            % Pick nPRB such that K_err >= length(err_seq)
+                            if (modulation == 'BPSK')
+                                nPRB_out = nPRB_select('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                            else
+                                nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                            end
+                            tbs_outer = nPRB_out.tbs_err;
+                            nPRB_outer = nPRB_out.nPRB;
+
+                            K_outer = tbs_outer; %no. bits in transportBlock
+                            N_outer = nPRB_outer*NREPerPRB*k;
+                            R_outer = K_outer/N_outer;
+                
+                            bgn_outer = bgn_select(K_outer,R_outer);
+                
+                            % Padding with zeroes
+                            nz_outer = K - length(errDataInSeq_err);
+                            err_seq_n = [errDataInSeq_err; zeros(nz_outer,1)];
+                            
+                            % Encoding and Rate matching
+                            errDataInSeq = nrldpc_enc(err_seq_n, R_outer, modulation, rv, bgn_outer, nlayers);
+                        end
                     else
-                        nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                        % find the smallest rate for compression : coding will be only for comp -> K, not N
+                        targetErrCodeRate = length(err_seq)/N;
+                            
+                        % PRB settings
+                        tarCodeLen = N;
+                        nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
+
+                        % Pick nPRB such that K_err >= length(err_seq)
+                        if (modulation == 'BPSK')
+                            nPRB_out = nPRB_select('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                        else
+                            nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
+                        end
+                        tbs_err = nPRB_out.tbs_err;
+                        nPRB_err = nPRB_out.nPRB;
+                        
+                        K_err = tbs_err; %no. bits in transportBlock
+                        N_err = nPRB_err*NREPerPRB*k;
+                        R_err = K_err/N_err;
+            
+                        bgn = bgn_select(K_err,R_err);
+            
+                        % Padding with zeroes
+                        nz = K_err - length(err_seq);
+                        err_seq_n = [err_seq; zeros(nz,1)];
+                        
+                        % Encoding and Rate matching
+                        errDataInSeq_err = nrldpc_enc(err_seq_n, R_err, modulation, rv, bgn, nlayers);
+                        errDataInSeq = errDataInSeq_err;
                     end
-                    tbs_err = nPRB_out.tbs_err;
-                    nPRB = nPRB_out.nPRB;
-                    
-                    K_err = tbs_err; %no. bits in transportBlock
-                    N_err = nPRB*NREPerPRB*k;
-                    R_err = K_err/N_err;
-        
-                    bgn_err = bgn_select(K_err,R_err);
-        
-                    % Padding with zeroes
-                    nz = K_err - length(err_seq);
-                    err_seq_n = [err_seq; zeros(nz,1)];
-                    
-                    % Encoding and Rate matching
-                    errDataInSeq = nrldpc_enc(err_seq_n, R_err, modulation, rv, bgn_err, nlayers);
+                elseif (PHY_code == "no_code")
+                    errDataInSeq = err_seq;
                 end
 
                 % Symbol Modulation
@@ -268,7 +329,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
             end
 
             % Decoding
-            if (code_type == "Conv")
+            if (PHY_code == "Conv")
                 if (feedback_mode == "MAC")
                     % first decode outer code
                     outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
@@ -289,10 +350,22 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
                 else
                     inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
                 end
-            else
-                 % Rate recovery and Decoding
-                rxLLR_FB_rr = nrRateRecoverLDPC(rxLLR_FB, K_err, R_err, rv, modulation, nlayers, ncb, Nref);
-                [inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr, K_err, max_iter, bgn_err);
+            end
+            
+            if (PHY_code == "LDPC")
+                if (feedback_mode == "MAC")
+                    % Rate recovery and Decoding - outer
+                    rxLLR_FB_rr_outer = nrRateRecoverLDPC(rxLLR_FB, K, R_outer, rv, modulation, nlayers, ncb, Nref);
+                    [outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_outer, K_outer, max_iter, bgn_outer);
+                    % next decode inner
+                    rxLLR_FB = -1 + 2*outer_err_seq_est;
+                    rxLLR_FB_rr = nrRateRecoverLDPC(rxLLR_FB, K_err, R_err, rv, modulation, nlayers, ncb, Nref);
+                    [inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr, K_err, max_iter, bgn_err);
+                else
+                    % Rate recovery and Decoding 
+                    rxLLR_FB_rr = nrRateRecoverLDPC(rxLLR_FB, K_err, R_err, rv, modulation, nlayers, ncb, Nref);
+                    [inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr, K_err, max_iter, bgn);
+                end
             end
 
             % Decompress
@@ -325,7 +398,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
             % Retransmit
             % generate new tx data
             
-            if (code_type == "Conv")         
+            if (PHY_code == "Conv")         
                 [dataIn, rr_len] = conv_enc(data, R);
             else
                 % generate new tx data with new rv
@@ -374,7 +447,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
             end
             
             % Chase Combining
-            if (code_type == "LDPC")
+            if (PHY_code == "LDPC")
                 rxLLR_HARQ_buffer = nrRateRecoverLDPC(rxLLR, K, R, rv, modulation, nlayers, ncb, Nref);
                 % Rate recovery
                 newRxLLR_HARQ = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
@@ -389,7 +462,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,code
             end
             
             % Rate recovery and Decoding
-            if (code_type == "Conv")
+            if (PHY_code == "Conv")
                 data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);
             else                
                 % Decoding

@@ -1,9 +1,5 @@
 global_settings = 1;
 
-gs_data = load(data_file_name_gs);
-
-opt_thr = process_bler_data(gs_data);
-
 % run plain harq
 err_thr = 0.00;
 err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
