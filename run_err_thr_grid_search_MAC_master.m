@@ -3,18 +3,18 @@ startup;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.000:0.005:0.095;
+err_thr_grid = 0.00:0.01:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
 nOut = 1;
-nMiniFrames = 1000;
+nMiniFrames = 500;
 
 nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 10;
+max_rounds = 4;
 
 % Code parameters
 targetCodeRate = 1/2;
@@ -27,7 +27,7 @@ if (MAC_code == "no_code")
     run_grid_search = 0;
 end
 
-feedback_mode = "MAC"; % MAC/PHY
+feedback_mode = "only_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";

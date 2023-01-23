@@ -118,7 +118,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
                 assert(length(err_seq) < length(data_est_err),'Compression failed in FB round %d',i_r);
 
                 % PHY-MAC mode
-                if (feedback_mode == "MAC")
+                if (feedback_mode == "MAC_PHY")
 
                     % MAC layer coding -- inner code : compress the error and perform FEC
                     if (MAC_code == "Conv")
@@ -222,7 +222,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
     
 		    % Rate rec and Decoding
 		    % 2 phase decoding if PHY-MAC scheme was used
-            if (feedback_mode == "MAC")
+            if (feedback_mode == "MAC_PHY")
     
 			    % first decode outer code -- PHY
 			    if (PHY_code == "Conv")
@@ -332,19 +332,19 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
 				rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
 			end
 
-			% Rate recovery and Decoding
+			% Rate recovery and Decoding : data_est_FB will be used to compute errors in next round, keep the variable consistent
 			if (PHY_code == "Conv")
-				data_est_HARQ = conv_dec(rxLLR_FB_HARQ, R, dec_type);
+				data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);
 			elseif (PHY_code == "LDPC")             
 				% Decoding
 				bgn = bgn_select(K,R);
-				[data_est_HARQ, ~] = nrldpc_dec(rxLLR_FB_HARQ, K, max_iter, bgn);
+				[data_est_FB, ~] = nrldpc_dec(rxLLR_FB_HARQ, K, max_iter, bgn);
 			elseif (PHY_code == "no_code")
-				data_est_HARQ = rxLLR_FB_HARQ > 0;
+				data_est_FB = rxLLR_FB_HARQ > 0;
 			end
 
 			% Check for errors -- genie
-			num_err_FB = sum(mod(data+double(data_est_HARQ),2));
+			num_err_FB = sum(mod(data+double(data_est_FB),2));
 
 			% update err count
 			num_err_vec(i_r+1) = num_err_FB;
@@ -358,367 +358,6 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
     end % end of max_rounds for loop
 
 			
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-% 					if (MAC_code == "Conv")
-
-%                     if (feedback_mode == "MAC")
-%                         % encode to length <= K
-%                         comp_code_inner = conv_enc(err_seq, comp_rate);
-
-%                         % interleaver between inner and outer code
-%                         comp_code_inner = randintrlv(comp_code_inner,int_state);
-
-%                         % append zeros to match length to K
-%                         nz = K - length(comp_code_inner);
-%                         comp_code_inner = [comp_code_inner; zeros(nz,1)];
-
-%                         % perform outer coding with rate K/N
-%                         comp_code_outer = conv_enc(comp_code_inner, base_rate);
-
-%                         errDataInSeq = comp_code_outer;
-%                     else
-%                         % Directly encode to length <= N
-%                         errDataInSeq = conv_enc(err_seq, comp_rate);
-%                     end
-%                 elseif (PHY_code == "LDPC")
-%                     % PHY-MAC mode
-%                     if (feedback_mode == "MAC")
-
-%                         % inner coding 
-%                         if (MAC_code == "LDPC")
-%                             % find the smallest rate for compression : coding will be only for comp -> K, not N
-%                             targetErrCodeRate = length(err_seq)/K;
-                            
-%                             % PRB settings
-%                             tarCodeLen = K;
-%                             nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
-
-%                             % Pick nPRB such that K_err >= length(err_seq)
-%                             if (modulation == 'BPSK')
-%                                 nPRB_out = nPRB_select('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
-%                             else
-%                                 nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
-%                             end
-%                             tbs_err = nPRB_out.tbs_err;
-%                             nPRB_err = nPRB_out.nPRB;
-                            
-%                             K_err = tbs_err; %no. bits in transportBlock
-%                             N_err = nPRB_err*NREPerPRB*k;
-%                             R_err = K_err/N_err;
-                
-%                             bgn_err = bgn_select(K_err,R_err);
-                
-%                             % Padding with zeroes
-%                             nz_err = K_err - length(err_seq);
-%                             err_seq_n_err = [err_seq; zeros(nz_err,1)];
-                            
-%                             % Encoding and Rate matching
-%                             errDataInSeq_err = nrldpc_enc(err_seq_n_err, R_err, modulation, rv, bgn_err, nlayers);
-%                         end
-
-%                         % outer coding with rate K/N
-%                         if (PHY_code == "LDPC")
-%                             % PRB settings
-%                             tarCodeLen = N;
-%                             nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
-
-%                             % Pick nPRB such that K_err >= length(err_seq)
-%                             if (modulation == 'BPSK')
-%                                 nPRB_out = nPRB_select('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
-%                             else
-%                                 nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
-%                             end
-%                             tbs_outer = nPRB_out.tbs_err;
-%                             nPRB_outer = nPRB_out.nPRB;
-
-%                             K_outer = tbs_outer; %no. bits in transportBlock
-%                             N_outer = nPRB_outer*NREPerPRB*k;
-%                             R_outer = K_outer/N_outer;
-                
-%                             bgn_outer = bgn_select(K_outer,R_outer);
-                
-%                             % Padding with zeroes
-%                             nz_outer = K - length(errDataInSeq_err);
-%                             err_seq_n = [errDataInSeq_err; zeros(nz_outer,1)];
-                            
-%                             % Encoding and Rate matching
-%                             errDataInSeq = nrldpc_enc(err_seq_n, R_outer, modulation, rv, bgn_outer, nlayers);
-%                         end
-%                     else
-%                         % find the smallest rate for compression : coding will be only for comp -> K, not N
-%                         targetErrCodeRate = length(err_seq)/N;
-                            
-%                         % PRB settings
-%                         tarCodeLen = N;
-%                         nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
-
-%                         % Pick nPRB such that K_err >= length(err_seq)
-%                         if (modulation == 'BPSK')
-%                             nPRB_out = nPRB_select('pi/2-BPSK',nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
-%                         else
-%                             nPRB_out = nPRB_select(modulation,nlayers,nPRB,NREPerPRB,targetErrCodeRate,length(err_seq));
-%                         end
-%                         tbs_err = nPRB_out.tbs_err;
-%                         nPRB_err = nPRB_out.nPRB;
-                        
-%                         K_err = tbs_err; %no. bits in transportBlock
-%                         N_err = nPRB_err*NREPerPRB*k;
-%                         R_err = K_err/N_err;
-            
-%                         bgn = bgn_select(K_err,R_err);
-            
-%                         % Padding with zeroes
-%                         nz = K_err - length(err_seq);
-%                         err_seq_n = [err_seq; zeros(nz,1)];
-                        
-%                         % Encoding and Rate matching
-%                         errDataInSeq_err = nrldpc_enc(err_seq_n, R_err, modulation, rv, bgn, nlayers);
-%                         errDataInSeq = errDataInSeq_err;
-%                     end
-%                 elseif (PHY_code == "no_code")
-%                     errDataInSeq = err_seq;
-%                 end
-
-%                 % Symbol Modulation
-%                 if (modulation == "BPSK")
-%                     bpskModulator = comm.BPSKModulator;
-%                     bpskModulator.PhaseOffset = pi/4;
-%                     txSig_FB = bpskModulator(errDataInSeq);
-%                 else
-%                     txSig_FB = qammod(errDataInSeq,M,'InputType','bit','UnitAveragePower',true);
-%                 end
-                    
-%                 % Pass through channel
-%                 if (channel == "awgn")
-%                     rxSig_FB = awgn(txSig_FB,SNRdB,'measured');
-%                 elseif (channel == "rayleigh")
-%                     h = sqrt(rand(1)^2 + rand(1)^2);
-%                     rxSig_FB = awgn(h*txSig_FB,SNRdB,'measured');
-%                 end
-%             else
-%                 %% FIX ME : Sticking to CC for now
- 
-%                 % Symbol Modulation
-%                 if (modulation == "BPSK")
-%                     bpskModulator = comm.BPSKModulator;
-%                     bpskModulator.PhaseOffset = pi/4;
-%                     txSig_FB = bpskModulator(errDataInSeq);
-%                 else
-%                     txSig_FB = qammod(errDataInSeq,M,'InputType','bit','UnitAveragePower',true);
-%                 end
-
-%                 % Pass through channel
-%                 if (channel == "awgn")
-%                     rxSig_FB = awgn(txSig_FB,SNRdB,'measured');
-%                 elseif (channel == "rayleigh")
-%                     h = sqrt(rand(1)^2 + rand(1)^2);
-%                     rxSig_FB = awgn(h*txSig_FB,SNRdB,'measured');
-%                 end
-%             end
-    
-%             % Symbol demod
-%             if (modulation == "BPSK")
-%                 if (dec_type == "hard")
-%                     bpskDemodulator = comm.BPSKDemodulator; 
-%                     bpskDemodulator.PhaseOffset = pi/4; 
-%                     bpskDemodulator.DecisionMethod = 'Hard decision';
-%                     rxLLR_FB = bpskDemodulator(rxSig_FB);
-%                 else
-%                     bpskDemodulator = comm.BPSKDemodulator; 
-%                     bpskDemodulator.PhaseOffset = pi/4; 
-%                     bpskDemodulator.DecisionMethod = 'Approximate log-likelihood ratio';
-%                     rxLLR_FB = bpskDemodulator(rxSig_FB);
-%                 end
-%             else
-%                 if (dec_type == "hard")
-%                     rxLLR_FB = qamdemod(rxSig_FB, M, OutputType='bit', UnitAveragePower=true);
-%                 else
-%                     rxLLR_FB = qamdemod(rxSig_FB, M, OutputType='approxllr', UnitAveragePower=true, NoiseVariance=noiseVar);
-%                 end
-%             end
-
-%             % Chase Combining
-%             if (dec_type == "hard")
-%                 rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
-%                 rxLLR_FB = round(mean(rxLLR_FB_buffer, 2));
-%             else
-%                 rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
-%                 rxLLR_FB = sum(rxLLR_FB_buffer, 2);
-%             end
-
-%             % Decoding
-%             if (PHY_code == "Conv")
-%                 if (feedback_mode == "MAC")
-%                     % first decode outer code
-%                     outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
-
-%                     % remove the zero padding
-%                     outer_err_seq_est = outer_err_seq_est(1:end-nz);
-                    
-%                     % deinterleaver between inner and outer code
-%                     outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
-                    
-%                     % next decode inner : map to 1 - 2*c for soft
-%                     if (dec_type == "hard")
-%                         rxLLR_FB = outer_err_seq_est;
-%                     else
-%                         rxLLR_FB = 1 - 2*outer_err_seq_est;
-%                     end
-%                     inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
-%                 else
-%                     inner_err_seq_est = conv_dec(rxLLR_FB,comp_rate,dec_type);
-%                 end
-%             end
-            
-%             if (PHY_code == "LDPC")
-%                 if (feedback_mode == "MAC")
-%                     % Rate recovery and Decoding - outer
-%                     rxLLR_FB_rr_outer = nrRateRecoverLDPC(rxLLR_FB, K, R_outer, rv, modulation, nlayers, ncb, Nref);
-%                     [outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_outer, K_outer, max_iter, bgn_outer);
-%                     % next decode inner
-%                     rxLLR_FB = -1 + 2*outer_err_seq_est;
-%                     rxLLR_FB_rr = nrRateRecoverLDPC(rxLLR_FB, K_err, R_err, rv, modulation, nlayers, ncb, Nref);
-%                     [inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr, K_err, max_iter, bgn_err);
-%                 else
-%                     % Rate recovery and Decoding 
-%                     rxLLR_FB_rr = nrRateRecoverLDPC(rxLLR_FB, K_err, R_err, rv, modulation, nlayers, ncb, Nref);
-%                     [inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr, K_err, max_iter, bgn);
-%                 end
-%             end
-
-%             % Decompress
-%             err_deseq_est = arithdeco(double(inner_err_seq_est),counts,length(data))-1;
-
-%             % Correct regardless of CRC but store the data (before
-%             % correction) : except for last round
-%             data_est_FB_prev = data_est_FB;
-%             num_err_FB_prev = sum(data ~= double(data_est_FB));
-
-%             %% FIX ME : temp 
-%             data_est_FB_temp = mod(data_est_FB + err_deseq_est,2);
-%             num_err_FB_temp = sum(data ~= double(data_est_FB_temp));
-%             if ((i_r < max_rounds - 1) || (i_r == max_rounds -1 && num_err_FB_temp == 0))
-%                 data_est_FB = mod(data_est_FB + err_deseq_est,2);
-%                 num_err_FB = sum(data ~= double(data_est_FB));
-%             end
-            
-%             % update err count
-%             num_err_vec(i_r+1) = num_err_FB;
-            
-%             rvSeq_ind = rvSeq_ind + 1;
-            
-%             % Break if crc passes
-%             if (num_err_FB == 0)
-% %                 disp(" ************* CORRECTED WITH SPARSE ************* ")
-%                 break;
-%             end
-%         else
-%             % Retransmit
-%             % generate new tx data
-            
-%             if (PHY_code == "Conv")         
-%                 [dataIn, rr_len] = conv_enc(data, R);
-%             else
-%                 % generate new tx data with new rv
-%                 rv = rvSeq(i_r+1);
-                
-%                 bgn = bgn_select(K,R);
-%                 dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
-%             end
-
-%             % Symbol Modulation
-%             if (modulation == "BPSK")
-%                 bpskModulator = comm.BPSKModulator;
-%                 bpskModulator.PhaseOffset = pi/4;
-%                 txSig = bpskModulator(dataIn);
-%             else
-%                 txSig = qammod(dataIn,M,'InputType','bit','UnitAveragePower',true);
-%             end
-
-%             % Pass through channel
-%             if (channel == "awgn")
-%                 newRxSig = awgn(txSig,SNRdB,'measured');
-%             elseif (channel == "rayleigh")
-%                 h = sqrt(rand(1)^2 + rand(1)^2);
-%                 newRxSig = awgn(h*txSig,SNRdB,'measured');
-%             end
-
-%             % Symbol demod
-%             if (modulation == "BPSK")
-%                 if (dec_type == "hard")
-%                     bpskDemodulator = comm.BPSKDemodulator; 
-%                     bpskDemodulator.PhaseOffset = pi/4; 
-%                     bpskDemodulator.DecisionMethod = 'Hard decision';
-%                     newRxLLR_HARQ = bpskDemodulator(newRxSig);
-%                 else
-%                     bpskDemodulator = comm.BPSKDemodulator; 
-%                     bpskDemodulator.PhaseOffset = pi/4; 
-%                     bpskDemodulator.DecisionMethod = 'Approximate log-likelihood ratio';
-%                     newRxLLR_HARQ = bpskDemodulator(newRxSig);
-%                 end
-%             else
-%                 if (dec_type == "hard")
-%                     newRxLLR_HARQ = qamdemod(newRxSig, M, OutputType='bit', UnitAveragePower=true);
-%                 else
-%                     newRxLLR_HARQ = qamdemod(newRxSig, M, OutputType='approxllr', UnitAveragePower=true, NoiseVariance=noiseVar);
-%                 end
-%             end
-            
-%             % Chase Combining
-%             if (PHY_code == "LDPC")
-%                 rxLLR_HARQ_buffer = nrRateRecoverLDPC(rxLLR, K, R, rv, modulation, nlayers, ncb, Nref);
-%                 % Rate recovery
-%                 newRxLLR_HARQ = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
-%             end
-
-%             if (dec_type == "hard")
-%                 rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
-%                 rxLLR_FB_HARQ = round(mean(rxLLR_HARQ_buffer,2));
-%             else
-%                 rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
-%                 rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
-%             end
-            
-%             % Rate recovery and Decoding
-%             if (PHY_code == "Conv")
-%                 data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);
-%             elseif (PHY_code == "LDPC")             
-%                 % Decoding
-%                 bgn = bgn_select(K,R);
-%                 [data_est_FB, crc_chk_FB_HARQ] = nrldpc_dec(rxLLR_FB_HARQ, K, max_iter, bgn);
-%             elseif (PHY_code == "no_code")
-%                 data_est_FB = rxLLR_FB_HARQ > 0;
-%             end
-
-%             % Check for errors : post descrambling
-%             num_err_FB = sum(mod(data+double(data_est_FB),2));
-
-%             % update err count
-%             num_err_vec(i_r+1) = num_err_FB;
-            
-%             % Break if crc passes
-%             if (num_err_FB == 0)
-%                 % disp(" ************* CORRECTED WITH HARQ ************* ")
-%                 break;
-%             end
-%         end
-
-%     end
-
     % output
     out.Avg_rounds_FB = Avg_rounds_FB;
     out.num_err_FB = num_err_FB;
@@ -807,4 +446,6 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
     end
 
 end
+
+
    
