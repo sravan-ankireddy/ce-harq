@@ -82,8 +82,9 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
         end
 
         % Update the counter
-        Avg_rounds_FB = Avg_rounds_FB + 1; 
-        
+        Avg_rounds_FB = Avg_rounds_FB + 1;
+
+        % Stay on HARQ if error is not sparse yet
         if (fb_scheme == "FB")
             % Compress the error assuming free feedback
             data_est_err = mod(data+double(data_est_FB),2);
@@ -143,7 +144,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
 						% find the smallest rate for compression : coding will be only for comp -> K, not N
 						targetErrCodeRate = length(err_seq)/K;
 						% N_mac ~= K
-						(K_mac, N_mac, R_mac, bgn_mac) = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq))
+						[K_mac, N_mac, R_mac, bgn_mac] = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq));
                         
 						% Padding with zeroes to be compatible with ldpc_encode
 						nz_mac = K_mac - length(err_seq);
@@ -154,13 +155,13 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
 
 					elseif (MAC_code == "no_code")
 						comp_code_inner = err_seq;
-					end
+                    end
 				
 					% PHY layer coding -- perform outer coding with rate K/N
 					if (PHY_code == "Conv")
                         comp_code_outer = conv_enc(comp_code_inner, base_rate);
 					elseif (PHY_code == "LDPC")
-						(K_phy, N_phy, R_phy, bgn_phy) = comp_rate_ldpc(K,nlayers,NREPerPRB,K/N,length(comp_code_inner));
+						[K_phy, N_phy, R_phy, bgn_phy] = comp_rate_ldpc(K,nlayers,NREPerPRB,K/N,length(comp_code_inner));
 						% Padding with zeroes to be compatible with ldpc_encode
 						nz_phy = K_phy - length(comp_code_inner);
 						comp_code_inner_n = [comp_code_inner; zeros(nz_phy,1)];
@@ -184,16 +185,12 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
 						% interleaver between inner and outer code
 						comp_code_inner = randintrlv(comp_code_inner,int_state);
 
-						% append zeros to match length to N
-						nz = N - length(comp_code_inner);
-						comp_code_inner = [comp_code_inner; zeros(nz,1)];
-
 						comp_code_outer = comp_code_inner;
-					elseif (PHY_code == "LDPC"):
+					elseif (PHY_code == "LDPC")
 						% find the smallest rate for compression : coding will be only for comp -> K, not N
 						targetErrCodeRate = length(err_seq)/N;
 						% N_phy ~= N
-						(K_phy, N_phy, R_phy, bgn_phy) = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq))
+						[K_phy, N_phy, R_phy, bgn_phy] = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq));
                         
 						% Padding with zeroes to be compatible with ldpc_encode
 						nz_phy = K_phy - length(err_seq);
@@ -203,147 +200,162 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
 						comp_code_inner = nrldpc_enc(err_seq_n, R_phy, modulation, rv, bgn_phy, nlayers);
 
 						comp_code_outer = comp_code_inner;
+                    elseif (PHY_code == "no_code")
+						comp_code_outer = err_seq;
 					end
-				end
+                end % ending PHY-MAC if 
+                
 				dataIn = comp_code_outer;
-				% Stay on HARQ if error is not sparse yet
-			else
-				% generate new tx data
-            
-				if (PHY_code == "Conv")         
-					[dataIn, rr_len] = conv_enc(data, R);
-				elseif (PHY_code == "LDPC")
-					% generate new tx data with new rv
-					rv = rvSeq(i_r+1);
-					bgn = bgn_select(K,R);
-					dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
-				elseif (PHY_code == "no_code")
-					dataIn = data;
-				end
-			end
+            end % Stay on HARQ if inner_scheme is not FB; no new dataIn generated
+
+            % generate llrs
+            % Pass through channel, modulation, democulation
+            rxLLR_FB = transmit_data (channel, dataIn, SNRdB, modulation, dec_type);
+
+            if (dec_type == "hard")
+			    rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
+			    rxLLR_FB = round(mean(rxLLR_FB_buffer, 2));
+		    else
+			    rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
+			    rxLLR_FB = sum(rxLLR_FB_buffer, 2);
+            end
+    
+		    % Rate rec and Decoding
+		    % 2 phase decoding if PHY-MAC scheme was used
+            if (feedback_mode == "MAC")
+    
+			    % first decode outer code -- PHY
+			    if (PHY_code == "Conv")
+				    outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
+    
+				    % remove the zero padding
+				    outer_err_seq_est = outer_err_seq_est(1:end-nz);
+				    
+				    % deinterleaver between inner and outer code
+				    outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
+    
+			    elseif (PHY_code == "LDPC")
+				    rxLLR_FB_rr_phy = nrRateRecoverLDPC(rxLLR_FB, K_phy, R_phy, rv, modulation, nlayers, ncb, Nref);
+            	    [outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_phy, K_phy, max_iter, bgn_phy);
+    
+			    elseif (PHY_code == "no_code")
+				    outer_err_seq_est = rxLLR_FB > 0;
+			    end
+				    
+			    % map to 1 - 2*c for LLRs : FIX ME : Is Chase Combining at this level useless?
+			    if (dec_type == "hard")
+				    rxLLR_FB_mac = outer_err_seq_est;
+			    else
+				    rxLLR_FB_mac = 1 - 2*outer_err_seq_est;
+			    end
+    
+			    % next decode inner code -- MAC
+                if (MAC_code == "Conv")
+                    inner_err_seq_est = conv_dec(rxLLR_FB_mac,R_mac,dec_type);
+                
+                elseif (MAC_code == "LDPC")
+                    rxLLR_FB_rr_mac = nrRateRecoverLDPC(rxLLR_FB_mac, K_mac, R_mac, rv, modulation, nlayers, ncb, Nref);
+                    [inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_mac, K_mac, max_iter, bgn_mac);
+                
+                elseif (MAC_code == "no_code")
+                    inner_err_seq_est = outer_err_seq_est;
+                end
+    
+            % Direct decoding if PHY-MAC scheme was NOT used : only PHY
+            % code matters
+            else
+                if (PHY_code == "Conv")
+                    outer_err_seq_est = conv_dec(rxLLR_FB,R_phy,dec_type);
+                end
+
+                inner_err_seq_est = outer_err_seq_est;
+            end % end of PHY-MAC check
+
+		    % Decompress
+		    err_deseq_est = arithdeco(double(inner_err_seq_est),counts,length(data))-1;
+
+		    % Correct regardless of CRC but store the data (before
+		    % correction) : except for last round
+		    data_est_FB_prev = data_est_FB;
+		    num_err_FB_prev = sum(data ~= double(data_est_FB));
+
+		    %% FIX ME : temp 
+		    data_est_FB_temp = mod(data_est_FB + err_deseq_est,2);
+		    num_err_FB_temp = sum(data ~= double(data_est_FB_temp));
+		    if ((i_r < max_rounds - 1) || (i_r == max_rounds -1 && num_err_FB_temp == 0))
+			    data_est_FB = mod(data_est_FB + err_deseq_est,2);
+			    num_err_FB = sum(data ~= double(data_est_FB));
+		    end
+		    
+		    % update err count
+		    num_err_vec(i_r+1) = num_err_FB;
+		    
+		    rvSeq_ind = rvSeq_ind + 1;
+		    
+		    % Break if all errors corrected
+            if (num_err_FB == 0)
+                break;
+            end
+
+        % Stay on HARQ if error is not sparse yet
+        else
+			% generate new tx data
+        
+            if (PHY_code == "Conv")         
+	            [dataIn, ~] = conv_enc(data, R);
+            elseif (PHY_code == "LDPC")
+	            % generate new tx data with new rv
+	            rv = rvSeq(i_r+1);
+	            bgn = bgn_select(K,R);
+	            dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
+            elseif (PHY_code == "no_code")
+	            dataIn = data;
+            end
 
 			% Pass through channel, modulation, democulation
             newRxLLR_HARQ = transmit_data (channel, dataIn, SNRdB, modulation, dec_type);
 
 			%% Receiver
+			% rate matching required for LDPC before CC
+			if (PHY_code == "LDPC")
+				rxLLR_HARQ_buffer = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
+				% Rate recovery
+				newRxLLR_HARQ = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
+			end
 
 			% Chase Combining
-			if (inner_scheme == "FB")
-				if (dec_type == "hard")
-					rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
-					rxLLR_FB = round(mean(rxLLR_FB_buffer, 2));
-				else
-					rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
-					rxLLR_FB = sum(rxLLR_FB_buffer, 2);
-				end
-
-				% Rate rec and Decoding
-				% 2 phase decoding if PHY-MAC scheme was used
-				if (feedback_mode == "MAC")
-
-					% first decode outer code -- PHY
-					if (PHY_code == "Conv")
-						outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
-	
-						% remove the zero padding
-						outer_err_seq_est = outer_err_seq_est(1:end-nz);
-						
-						% deinterleaver between inner and outer code
-						outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
-
-					elseif (PHY_code == "LDPC")
-						rxLLR_FB_rr_phy = nrRateRecoverLDPC(rxLLR_FB, K_phy, R_phy, rv, modulation, nlayers, ncb, Nref);
-                    	[outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_phy, K_phy, max_iter, bgn_phy);
-
-					elseif (PHY_code == "no_code")
-						outer_err_seq_est = rxLLR_FB > 0;
-					end
-						
-					% map to 1 - 2*c for LLRs : FIX ME : Is Chase Combining at this level useless?
-					if (dec_type == "hard")
-						rxLLR_FB_mac = outer_err_seq_est;
-					else
-						rxLLR_FB_mac = 1 - 2*outer_err_seq_est;
-					end
-
-					% next decode inner code -- MAC
-					if (MAC_code == "Conv")
-						inner_err_seq_est = conv_dec(rxLLR_FB_mac,R_mac,dec_type);
-					
-					elseif (MAC_code == "LDPC")
-						rxLLR_FB_rr_mac = nrRateRecoverLDPC(rxLLR_FB_mac, K_mac, R_mac, rv, modulation, nlayers, ncb, Nref);
-                    	[inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_mac, K_mac, max_iter, bgn_mac);
-
-					elseif (MAC_code == "no_code")
-						inner_err_seq_est = outer_err_seq_est;
-					end
-
-					% Decompress
-					err_deseq_est = arithdeco(double(inner_err_seq_est),counts,length(data))-1;
-
-					% Correct regardless of CRC but store the data (before
-					% correction) : except for last round
-					data_est_FB_prev = data_est_FB;
-					num_err_FB_prev = sum(data ~= double(data_est_FB));
-		
-					%% FIX ME : temp 
-					data_est_FB_temp = mod(data_est_FB + err_deseq_est,2);
-					num_err_FB_temp = sum(data ~= double(data_est_FB_temp));
-					if ((i_r < max_rounds - 1) || (i_r == max_rounds -1 && num_err_FB_temp == 0))
-						data_est_FB = mod(data_est_FB + err_deseq_est,2);
-						num_err_FB = sum(data ~= double(data_est_FB));
-					end
-					
-					% update err count
-					num_err_vec(i_r+1) = num_err_FB;
-					
-					rvSeq_ind = rvSeq_ind + 1;
-					
-					% Break if all errors corrected
-					if (num_err_FB == 0)
-						break;
-					end
-				end
-
+			if (dec_type == "hard")
+				rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
+				rxLLR_FB_HARQ = round(mean(rxLLR_HARQ_buffer,2));
 			else
-				% rate matching required for LDPC before CC
-				if (PHY_code == "LDPC")
-					rxLLR_HARQ_buffer = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
-					% Rate recovery
-					newRxLLR_HARQ = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
-				end
-
-				% Chase Combining
-				if (dec_type == "hard")
-					rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
-					rxLLR_FB_HARQ = round(mean(rxLLR_HARQ_buffer,2));
-				else
-					rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
-					rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
-				end
-
-				% Rate recovery and Decoding
-				if (PHY_code == "Conv")
-					data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);
-				elseif (PHY_code == "LDPC")             
-					% Decoding
-					bgn = bgn_select(K,R);
-					[data_est_FB, crc_chk_FB_HARQ] = nrldpc_dec(rxLLR_FB_HARQ, K, max_iter, bgn);
-				elseif (PHY_code == "no_code")
-					data_est_FB = rxLLR_FB_HARQ > 0;
-				end
-	
-				% Check for errors -- genie
-				num_err_FB = sum(mod(data+double(data_est_FB),2));
-	
-				% update err count
-				num_err_vec(i_r+1) = num_err_FB;
-				
-				% Break if crc passes
-				if (num_err_FB == 0)
-					break;
-				end
+				rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
+				rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
 			end
+
+			% Rate recovery and Decoding
+			if (PHY_code == "Conv")
+				data_est_HARQ = conv_dec(rxLLR_FB_HARQ, R, dec_type);
+			elseif (PHY_code == "LDPC")             
+				% Decoding
+				bgn = bgn_select(K,R);
+				[data_est_HARQ, ~] = nrldpc_dec(rxLLR_FB_HARQ, K, max_iter, bgn);
+			elseif (PHY_code == "no_code")
+				data_est_HARQ = rxLLR_FB_HARQ > 0;
+			end
+
+			% Check for errors -- genie
+			num_err_FB = sum(mod(data+double(data_est_HARQ),2));
+
+			% update err count
+			num_err_vec(i_r+1) = num_err_FB;
+			
+			% Break if crc passes
+            if (num_err_FB == 0)
+	            break;
+            end
+        end % end of check for feedback_scheme : FB vs HARQ based on sparsity
+
+    end % end of max_rounds for loop
 
 			
 
@@ -732,7 +744,7 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
         end
     end
 
-    function (K_err, N_err, R_err, bgn_err) = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,len_err_seq)
+    function [K_err, N_err, R_err, bgn_err] = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,len_err_seq)
 
         % PRB settings
         nPRB = round(tarCodeLen/(k*NREPerPRB)); % Vary this to change the code length
@@ -778,22 +790,21 @@ function out = retransmit_func_FB_MAC_master(channel,SNRdB,modulation,N,K,R,PHY_
 				bpskDemodulator = comm.BPSKDemodulator; 
 				bpskDemodulator.PhaseOffset = pi/4; 
 				bpskDemodulator.DecisionMethod = 'Hard decision';
-				newRxLLR_HARQ = bpskDemodulator(newRxSig);
+				generate_llr = bpskDemodulator(newRxSig);
 			else
 				bpskDemodulator = comm.BPSKDemodulator; 
 				bpskDemodulator.PhaseOffset = pi/4; 
 				bpskDemodulator.DecisionMethod = 'Approximate log-likelihood ratio';
-				newRxLLR_HARQ = bpskDemodulator(newRxSig);
+				generate_llr = bpskDemodulator(newRxSig);
 			end
 		else
 			if (dec_type == "hard")
-				newRxLLR_HARQ = qamdemod(newRxSig, M, OutputType='bit', UnitAveragePower=true);
+				generate_llr = qamdemod(newRxSig, M, OutputType='bit', UnitAveragePower=true);
 			else
-				newRxLLR_HARQ = qamdemod(newRxSig, M, OutputType='approxllr', UnitAveragePower=true, NoiseVariance=noiseVar);
+				generate_llr = qamdemod(newRxSig, M, OutputType='approxllr', UnitAveragePower=true, NoiseVariance=noiseVar);
 			end
-		end
-
-	end
+        end
+    end
 
 end
-
+   

@@ -8,13 +8,13 @@ gs_size = length(err_thr_grid);
 
 % sim params
 nOut = 1;
-nMiniFrames = 200;
+nMiniFrames = 1000;
 
 nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 4;
+max_rounds = 10;
 
 % Code parameters
 targetCodeRate = 1/2;
@@ -27,8 +27,7 @@ if (MAC_code == "no_code")
     run_grid_search = 0;
 end
 
-
-feedback_mode = "PHY"; % MAC/PHY
+feedback_mode = "MAC"; % MAC/PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -155,7 +154,7 @@ end
 % SNRdB_low = -2;
 % SNRdB_high = SNRdB_high - 4;
 
-SNRdB_step = 2;
+SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 channel = "awgn";
@@ -308,8 +307,11 @@ end
 
 % Store data
 if (run_grid_search == 1)
-    data_file_name_gs = [res_folder_fb sprintf('/fb_data_%s_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat',PHY_code, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
+    outer_str = sprintf('/fb_data_%s_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', PHY_code, MAC_code, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds);
+    data_file_name_gs = [res_folder_fb outer_str];
     save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
+    gs_data = load(data_file_name_gs);
+    opt_thr = process_bler_data(gs_data);
 else
     if (MAC_code == "no_code")
         opt_thr.err_thr_opt = zeros(1,length(SNRdB_vec));
@@ -318,7 +320,8 @@ else
         opt_thr = process_bler_data(gs_data);
         nFrames_ref = 100000;
         res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames_ref)];
-        data_file_name_gs = [res_folder_fb sprintf('/fb_data_%s_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', PHY_code, MAC_code, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds)];
+        outer_str = sprintf('/fb_data_%s_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', PHY_code, MAC_code, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds);
+        data_file_name_gs = [res_folder_fb outer_str];
     end
 end
 
