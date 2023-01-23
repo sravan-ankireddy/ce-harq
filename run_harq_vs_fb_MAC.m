@@ -1,19 +1,10 @@
 global_settings = 1;
 
-gs_data = load(data_file_name_gs);
-
-opt_thr = process_bler_data(gs_data);
-
 % run plain harq
 err_thr = 0.00;
 err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
 err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
 
-% err_thr_ada_list_est(1,:) = 0.05;
-% err_thr_ada_list_est(2,:) = 0.06;
-% err_thr_ada_list_est(3,:) = 0.075;
-% err_thr_ada_list_est(4,:) = 0.075;
-% err_thr_ada_scheme = "opt";
 run_fb_MAC;
 
 err_thr_ada_scheme = "opt";
@@ -36,21 +27,20 @@ f = semilogy(SNRdB_vec,BLER_HARQ,'b-o');
 hold on;
 semilogy(SNRdB_vec,BLER_FB_opt,'r-d');
 
-fs = 12;
-xlabel('SNR','FontSize',fs);
-ylabel('BLER','FontSize',fs);
 grid on;
 
 codeRate = R;
-leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
-leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+leg_HARQ = sprintf('HARQ');
+leg_FB = sprintf('F-HARQ');
+% leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
+% leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
-legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
+legend(leg_HARQ, leg_FB);
 
-title_name = sprintf('FB-%s : BLER Conv %d, mod. %s, Rate %.3f, errthr : grid search %s, max. rounds %d',combining_scheme, N, modulation, R,err_thr_ada_scheme,  max_rounds);
-title(title_name,'FontSize',fs);
+title_name = sprintf('FB-%s : BLER %s, len %d, %s, Rate %.3f, errthr : %s, max. rounds %d',code_comb_title, combining_scheme, N, modulation, R,err_thr_ada_scheme,  max_rounds);
+title(title_name);
 
-common_str = [res_folder_harq_vs_fb sprintf('/BLER_HARQ_vs_FB_Conv_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d', N, R, err_thr_ada_scheme, max_rounds)];
+common_str = [res_folder_harq_vs_fb sprintf('/BLER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
@@ -65,21 +55,17 @@ f = semilogy(SNRdB_vec,Avg_rounds_HARQ,'b-o');
 hold on;
 semilogy(SNRdB_vec,Avg_rounds_FB_opt,'r-d');
 
-fs = 12;
-xlabel('SNR','FontSize',fs);
-ylabel('Avg. Rounds','FontSize',fs);
 grid on;
 
-codeRate = R;
-leg_HARQ = sprintf('HARQ-%s Avg Rounds %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
-leg_FB = sprintf('FB-%s Avg Rounds %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+% leg_HARQ = sprintf('HARQ-%s Avg Rounds %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
+% leg_FB = sprintf('FB-%s Avg Rounds %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
-legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
+legend(leg_HARQ, leg_FB);
 
-title_name = sprintf('FB-%s : Avg rounds Conv %d, mod. %s, Rate %.3f, errthr : grid search %s , max. rounds %d',combining_scheme, N, modulation, R, err_thr_ada_scheme, max_rounds);
-title(title_name,'FontSize',fs);
+title_name = sprintf('FB-%s : Avg rounds %s, len %d, %s, Rate %.3f, errthr : %s , max. rounds %d',combining_scheme, code_comb_title, N, modulation, R, err_thr_ada_scheme, max_rounds);
+title(title_name);
 
-common_str = [res_folder_harq_vs_fb sprintf('/Avg_rounds_HARQ_vs_FB_Conv_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d', N,R, err_thr_ada_scheme, max_rounds)];
+common_str = [res_folder_harq_vs_fb sprintf('/Avg_rounds_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d', code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
@@ -96,21 +82,19 @@ f = semilogy(SNRdB_vec,SE_HARQ,'b-o');
 hold on;
 semilogy(SNRdB_vec,SE_FB,'r-d');
 
-fs = 12;
-xlabel('SNR','FontSize',fs);
-ylabel('Spectral Efficiency [Bits/s/Hz]','FontSize',fs);
+xlabel('SNR');
+ylabel('Spectral Efficiency [Bits/s/Hz]');
 grid on;
 
-codeRate = R;
-leg_HARQ = sprintf('HARQ-%s SE %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
-leg_FB = sprintf('FB-%s SE %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+% leg_HARQ = sprintf('HARQ-%s SE %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
+% leg_FB = sprintf('FB-%s SE %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
-legend(leg_HARQ, leg_FB, 'Location','southwest','FontSize',fs);
+legend(leg_HARQ, leg_FB);
 
-title_name = sprintf('FB-%s : Spectral Efficiency Conv %d, mod. %s, Rate %.3f, errthr : grid search %s , max. rounds %d',combining_scheme, N, modulation, R, err_thr_ada_scheme, max_rounds);
-title(title_name,'FontSize',fs);
+title_name = sprintf('FB-%s : Spectral Efficiency %s, len %d, %s, Rate %.3f, errthr : %s , max. rounds %d',code_comb_title, combining_scheme, N, modulation, R, err_thr_ada_scheme, max_rounds);
+title(title_name);
 
-common_str = [res_folder_harq_vs_fb sprintf('/Spectral Efficiency_HARQ_vs_FB_Conv_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d', N,R, err_thr_ada_scheme, max_rounds)];
+common_str = [res_folder_harq_vs_fb sprintf('/Spectral Efficiency_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
 
 fig_name = common_str + ".fig";
 savefig(fig_name);

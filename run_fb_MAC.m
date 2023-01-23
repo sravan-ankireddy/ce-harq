@@ -5,8 +5,10 @@ if ~exist('global_settings','var')
     % Code parameters
     targetCodeRate = 0.5;
     
-    N = 400;
-    code_type = "Conv";
+    N = 800;
+    PHY_code = "Conv";
+    MAC_code = "Conv";
+    feedback_mode = "PHY"; % MAC/PHY
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     combining_scheme = "CC";
@@ -50,6 +52,7 @@ BLER_vec_pr_FB = zeros(max_rounds,num_SNRdB);
 
 Avg_rounds_FB = zeros(1,num_SNRdB);
 
+
 tic;
 for i_s = 1:length(SNRdB_vec)
     SNRdB = round(SNRdB_vec(i_s),4);
@@ -76,7 +79,7 @@ for i_s = 1:length(SNRdB_vec)
 
     for i_on = 1:nOut
     
-        parfor i_n = 1:nMiniFrames
+       parfor i_n = 1:nMiniFrames
             
             seed = i_n + (i_on-1)*nMiniFrames;
             
@@ -89,7 +92,15 @@ for i_s = 1:length(SNRdB_vec)
             data = randi([0 1], K, 1);
         
             % Encoding and Rate matching
-            [dataIn, rr_len] = conv_enc(data, targetCodeRate);
+            dataIn = data;
+            if (PHY_code == "Conv")
+                [dataIn, rr_len] = conv_enc(data, targetCodeRate);
+            elseif (PHY_code == "LDPC")
+                bgn = bgn_select(K,R);
+                dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
+            elseif (PHY_code == "no_code")
+                dataIn = data;
+            end
             
             % Symbol Modulation
             if (modulation == "BPSK")
@@ -131,10 +142,17 @@ for i_s = 1:length(SNRdB_vec)
             end
 
             % Rate recovery and Decoding
-            % if (dec_type == "hard")
-            %     rxLLR = rxLLR < 0;
-            % end
-            data_est = conv_dec(rxLLR, targetCodeRate, dec_type);
+            rxLLR_rr = rxLLR;
+            data_est = rxLLR > 0;
+            if (PHY_code == "Conv")
+                data_est = conv_dec(rxLLR, targetCodeRate, dec_type);
+            elseif (PHY_code == "LDPC")
+                rxLLR_rr = nrRateRecoverLDPC(rxLLR, K, R, rv, modulation, nlayers, ncb, Nref);
+                bgn = bgn_select(K,R);
+                [data_est, crc_chk] = nrldpc_dec(rxLLR_rr, K, max_iter, bgn);
+            elseif (PHY_code == "no_code")
+                data_est = rxLLR_rr > 0;
+            end
 
             % Check for error stats
             num_err = sum(data ~= double(data_est));
@@ -143,9 +161,8 @@ for i_s = 1:length(SNRdB_vec)
             num_err_FB_per_round(1) = num_err;
             
             % Start retransmission if 1st round failed
-            
             if (num_err > 0 && max_rounds > 1)
-                out = retransmit_func_FB_MAC(channel,SNRdB,modulation,length(rxLLR),K,targetCodeRate,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
+                out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,targetCodeRate,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
                 num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
                 num_err_FB = out.num_err_FB;
                 num_err_FB_per_round = out.num_err_vec;
@@ -196,20 +213,21 @@ if (process_data_fb == 1)
     
     f = semilogy(SNRdB_vec,BER_vec_pr_FB(end,:),'r-d');
     
-    fs = 12;
-    xlabel('SNR','FontSize',fs);
-    ylabel('BER','FontSize',fs);
+    
+    xlabel('SNR');
+    ylabel('BER');
     grid on;
     
     codeRate = R;
-    leg_FB = sprintf('FB-%s BER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+    leg_FB = 'F-HARQ';
+    % leg_FB = sprintf('FB-%s BER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     
-    legend(leg_FB, 'Location','southwest','FontSize',fs);
+    legend(leg_FB);
     
-    title_name = sprintf('FB-%s : BER Conv %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d',combining_scheme, N, modulation, R, err_thr, max_rounds);
-    title(title_name,'FontSize',fs);
+    title_name = sprintf('FB-%s : BER %s %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d',code_comb_title, combining_scheme, N, modulation, R, err_thr, max_rounds);
+    title(title_name);
     
-    common_str = res_folder_all + sprintf('/BER_Conv_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d', N,R, err_thr, max_rounds);
+    common_str = res_folder_all + sprintf('/BER_%s_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d', code_comb_str, N, R, err_thr, max_rounds);
     
     fig_name = common_str + ".fig";
     savefig(fig_name);
@@ -222,20 +240,19 @@ if (process_data_fb == 1)
     
     f = semilogy(SNRdB_vec,BLER_vec_pr_FB(end,:),'r-d');
     
-    fs = 12;
-    xlabel('SNR','FontSize',fs);
-    ylabel('BLER','FontSize',fs);
+    
+    xlabel('SNR');
+    ylabel('BLER');
     grid on;
     
-    codeRate = R;
-    leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+    % leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     
-    legend(leg_FB, 'Location','southwest','FontSize',fs);
+    legend(leg_FB);
     
-    title_name = sprintf('FB-%s : BLER Conv %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d',combining_scheme, N, modulation, R, err_thr, max_rounds);
-    title(title_name,'FontSize',fs);
+    title_name = sprintf('FB-%s : BLER %s %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d',code_comb_title, combining_scheme, N, modulation, R, err_thr, max_rounds);
+    title(title_name);
     
-    common_str = res_folder_all + sprintf('/BLER_Conv_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d', N,R, err_thr, max_rounds);
+    common_str = res_folder_all + sprintf('/BLER_%s_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d',code_comb_str, N, R, err_thr, max_rounds);
     
     fig_name = common_str + ".fig";
     savefig(fig_name);
@@ -249,18 +266,18 @@ if (process_data_fb == 1)
     
     f = semilogy(SNRdB_vec,Avg_rounds_FB,'r-d');
     
-    fs = 12;
-    xlabel('SNR','FontSize',fs);
-    ylabel('Avg. rounds','FontSize',fs);
+    
+    xlabel('SNR');
+    ylabel('Avg. rounds');
     grid on;
     
-    leg_FB = sprintf('FB-%s AR Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
-    legend(leg_FB, 'Location','southwest','FontSize',fs);
+    % leg_FB = sprintf('FB-%s AR Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+    legend(leg_FB);
     
-    title_name = sprintf('FB-%s : AR Conv %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d', combining_scheme, N, modulation, R, err_thr, max_rounds);
-    title(title_name,'FontSize',fs);
+    title_name = sprintf('FB-%s : AR %s %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d', code_comb_title, combining_scheme, N, modulation, R, err_thr, max_rounds);
+    title(title_name);
     
-    common_str = res_folder_all + sprintf('/AR_Conv_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d', N,R, err_thr, max_rounds);
+    common_str = res_folder_all + sprintf('/AR_%s_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d', code_comb_str, N, R, err_thr, max_rounds);
     
     fig_name = common_str + ".fig";
     savefig(fig_name);
@@ -276,18 +293,18 @@ if (process_data_fb == 1)
 
     f = semilogy(SNRdB_vec,SE,'r-d');
     
-    fs = 12;
-    xlabel('SNR','FontSize',fs);
-    ylabel('Spectral Efficiency [bits/s/Hz]','FontSize',fs);
+    
+    xlabel('SNR');
+    ylabel('Spectral Efficiency [bits/s/Hz]');
     grid on;
     
-    leg_FB = sprintf('FB-%s SE Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
-    legend(leg_FB, 'Location','southwest','FontSize',fs);
+    % leg_FB = sprintf('FB-%s SE Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
+    legend(leg_FB);
     
-    title_name = sprintf('FB-%s : SE Conv %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d', combining_scheme, N, modulation, R, err_thr, max_rounds);
-    title(title_name,'FontSize',fs);
+    title_name = sprintf('FB-%s : SE %s %d, mod. %s, Rate %.3f, errthr %.3f, max. rounds %d', code_comb_title, combining_scheme, N, modulation, R, err_thr, max_rounds);
+    title(title_name);
     
-    common_str = res_folder_all + sprintf('/SE_Conv_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d', N,R, err_thr, max_rounds);
+    common_str = res_folder_all + sprintf('/SE_%s_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d', code_comb_str, N, R, err_thr, max_rounds);
     
     fig_name = common_str + ".fig";
     savefig(fig_name);
@@ -300,6 +317,6 @@ if (process_data_fb == 1)
     snr_data = SNRdB_vec;
     
     % Store data 
-    data_file_name = res_folder_all + sprintf('/fb_data_Conv_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d.mat', N,R, err_thr, max_rounds);
+    data_file_name = res_folder_all + sprintf('/fb_data_%s_%d_rate_%.3f_err_thr_%.3f_max_rounds_%d.mat', code_comb_str, N, R, err_thr, max_rounds);
     save(data_file_name,'ber_data','bler_data','ar_data','snr_data','err_thr');
 end
