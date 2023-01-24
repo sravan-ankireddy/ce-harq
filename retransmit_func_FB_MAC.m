@@ -144,7 +144,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 						% find the smallest rate for compression : coding will be only for comp -> K, not N
 						targetErrCodeRate = length(err_seq)/K;
 						% N_mac ~= K
-						[K_mac, N_mac, R_mac, bgn_mac] = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq));
+						[K_mac, N_mac, R_mac, bgn_mac] = comp_rate_ldpc(K,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq));
                         
 						% Padding with zeroes to be compatible with ldpc_encode
 						nz_mac = K_mac - length(err_seq);
@@ -179,18 +179,15 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 						targetErrCodeRate = (length(err_seq)+3)/N;
 						R_phy = comp_rate_conv(targetErrCodeRate, minR, comp_rates);
 
-						% encode to length <= K
+						% encode to length <= N
 						comp_code_inner = conv_enc(err_seq, R_phy);
-
-						% interleaver between inner and outer code
-						comp_code_inner = randintrlv(comp_code_inner,int_state);
 
 						comp_code_outer = comp_code_inner;
 					elseif (PHY_code == "LDPC")
 						% find the smallest rate for compression : coding will be only for comp -> K, not N
 						targetErrCodeRate = length(err_seq)/N;
 						% N_phy ~= N
-						[K_phy, N_phy, R_phy, bgn_phy] = comp_rate_ldpc(tarCodeLen,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq));
+						[K_phy, N_phy, R_phy, bgn_phy] = comp_rate_ldpc(N,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq));
                         
 						% Padding with zeroes to be compatible with ldpc_encode
 						nz_phy = K_phy - length(err_seq);
@@ -266,6 +263,12 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
             else
                 if (PHY_code == "Conv")
                     outer_err_seq_est = conv_dec(rxLLR_FB,R_phy,dec_type);
+                elseif (PHY_code == "LDPC")
+                    rxLLR_FB_rr_phy = nrRateRecoverLDPC(rxLLR_FB, K_phy, R_phy, rv, modulation, nlayers, ncb, Nref);
+                    [outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_phy, K_phy, max_iter, bgn_phy);
+                elseif (PHY_code == "no_code")
+
+                    outer_err_seq_est = rxLLR_FB > 0;
                 end
 
                 inner_err_seq_est = outer_err_seq_est;
