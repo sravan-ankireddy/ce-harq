@@ -1,4 +1,4 @@
-function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
+function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
     int_state = seed;
@@ -133,8 +133,8 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
                         comp_code_inner = randintrlv(comp_code_inner,int_state);
 
                         % append zeros to match length to K
-                        nz = K - length(comp_code_inner);
-                        comp_code_inner = [comp_code_inner; zeros(nz,1)];  
+                        nz_mac = K - length(comp_code_inner);
+                        comp_code_inner = [comp_code_inner; zeros(nz_mac,1)];  
 						
 						% standardizing notation
 						K_mac = K;
@@ -153,7 +153,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 						% Encoding and Rate matching
 						comp_code_inner = nrldpc_enc(err_seq_n, R_mac, modulation, rv, bgn_mac, nlayers);
 
-					elseif (MAC_code == "no_code")
+					elseif (MAC_code == "no-code")
 						comp_code_inner = err_seq;
                     end
 				
@@ -168,7 +168,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 
 						% Encoding and Rate matching
 						comp_code_outer = nrldpc_enc(comp_code_inner_n, R_phy, modulation, rv, bgn_phy, nlayers);
-					elseif (PHY_code == "no_code")
+					elseif (PHY_code == "no-code")
 						comp_code_outer = comp_code_inner;
 					end
 				
@@ -197,7 +197,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 						comp_code_inner = nrldpc_enc(err_seq_n, R_phy, modulation, rv, bgn_phy, nlayers);
 
 						comp_code_outer = comp_code_inner;
-                    elseif (PHY_code == "no_code")
+                    elseif (PHY_code == "no-code")
 						comp_code_outer = err_seq;
 					end
                 end % ending PHY-MAC if 
@@ -225,20 +225,23 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 			    if (PHY_code == "Conv")
 				    outer_err_seq_est = conv_dec(rxLLR_FB,base_rate,dec_type);
     
-				    % remove the zero padding
-				    outer_err_seq_est = outer_err_seq_est(1:end-nz);
-				    
-				    % deinterleaver between inner and outer code
-				    outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
-    
 			    elseif (PHY_code == "LDPC")
 				    rxLLR_FB_rr_phy = nrRateRecoverLDPC(rxLLR_FB, K_phy, R_phy, rv, modulation, nlayers, ncb, Nref);
             	    [outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_phy, K_phy, max_iter, bgn_phy);
     
-			    elseif (PHY_code == "no_code")
-				    outer_err_seq_est = rxLLR_FB > 0;
+			    elseif (PHY_code == "no-code")
+				    outer_err_seq_est = double(rxLLR_FB > 0);
 			    end
-				    
+
+                % zero padding and deinterleaver if Conv MAC
+                if (MAC_code == "Conv")
+                    % remove the zero padding
+                    outer_err_seq_est = outer_err_seq_est(1:end-nz_mac);
+                    
+                    % deinterleaver between inner and outer code
+                    outer_err_seq_est = randdeintrlv(outer_err_seq_est,int_state);
+                end
+
 			    % map to 1 - 2*c for LLRs : FIX ME : Is Chase Combining at this level useless?
 			    if (dec_type == "hard")
 				    rxLLR_FB_mac = outer_err_seq_est;
@@ -254,7 +257,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
                     rxLLR_FB_rr_mac = nrRateRecoverLDPC(rxLLR_FB_mac, K_mac, R_mac, rv, modulation, nlayers, ncb, Nref);
                     [inner_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_mac, K_mac, max_iter, bgn_mac);
                 
-                elseif (MAC_code == "no_code")
+                elseif (MAC_code == "no-code")
                     inner_err_seq_est = outer_err_seq_est;
                 end
     
@@ -263,10 +266,11 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
             else
                 if (PHY_code == "Conv")
                     outer_err_seq_est = conv_dec(rxLLR_FB,R_phy,dec_type);
+
                 elseif (PHY_code == "LDPC")
                     rxLLR_FB_rr_phy = nrRateRecoverLDPC(rxLLR_FB, K_phy, R_phy, rv, modulation, nlayers, ncb, Nref);
                     [outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_phy, K_phy, max_iter, bgn_phy);
-                elseif (PHY_code == "no_code")
+                elseif (PHY_code == "no-code")
 
                     outer_err_seq_est = rxLLR_FB > 0;
                 end
@@ -311,7 +315,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 	            rv = rvSeq(i_r+1);
 	            bgn = bgn_select(K,R);
 	            dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
-            elseif (PHY_code == "no_code")
+            elseif (PHY_code == "no-code")
 	            dataIn = data;
             end
 
@@ -342,7 +346,7 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
 				% Decoding
 				bgn = bgn_select(K,R);
 				[data_est_FB, ~] = nrldpc_dec(rxLLR_FB_HARQ, K, max_iter, bgn);
-			elseif (PHY_code == "no_code")
+			elseif (PHY_code == "no-code")
 				data_est_FB = rxLLR_FB_HARQ > 0;
 			end
 
@@ -449,6 +453,3 @@ function out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,R,MAC_code,PH
     end
 
 end
-
-
-   

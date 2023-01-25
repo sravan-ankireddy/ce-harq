@@ -98,7 +98,7 @@ for i_s = 1:length(SNRdB_vec)
             elseif (PHY_code == "LDPC")
                 bgn = bgn_select(K,R);
                 dataIn = nrldpc_enc(data, R, modulation, rv, bgn, nlayers);
-            elseif (PHY_code == "no_code")
+            elseif (PHY_code == "no-code")
                 dataIn = data;
             end
             
@@ -150,7 +150,7 @@ for i_s = 1:length(SNRdB_vec)
                 rxLLR_rr = nrRateRecoverLDPC(rxLLR, K, R, rv, modulation, nlayers, ncb, Nref);
                 bgn = bgn_select(K,R);
                 [data_est, crc_chk] = nrldpc_dec(rxLLR_rr, K, max_iter, bgn);
-            elseif (PHY_code == "no_code")
+            elseif (PHY_code == "no-code")
                 data_est = rxLLR_rr > 0;
             end
 
@@ -162,7 +162,7 @@ for i_s = 1:length(SNRdB_vec)
             
             % Start retransmission if 1st round failed
             if (num_err > 0 && max_rounds > 1)
-                out = retransmit_func_FB_MAC(channel,SNRdB,modulation,N,K,targetCodeRate,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
+                out = retransmit_func_FB(channel,SNRdB,modulation,N,K,targetCodeRate,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
                 num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
                 num_err_FB = out.num_err_FB;
                 num_err_FB_per_round = out.num_err_vec;

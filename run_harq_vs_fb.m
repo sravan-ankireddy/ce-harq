@@ -5,7 +5,7 @@ err_thr = 0.00;
 err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
 err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
 
-run_fb_MAC;
+run_fb;
 
 err_thr_ada_scheme = "opt";
 
@@ -14,7 +14,7 @@ Avg_rounds_HARQ = Avg_rounds_FB;
 
 % run fb with opt err_thr
 err_thr_ada_list = opt_thr.err_thr_opt;
-run_fb_MAC;
+run_fb;
 
 BLER_FB_opt = BLER_vec_FB;
 Avg_rounds_FB_opt = Avg_rounds_FB;

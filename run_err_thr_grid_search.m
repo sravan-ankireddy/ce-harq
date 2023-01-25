@@ -3,12 +3,12 @@ startup;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.00:0.01:0.1;
+err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 1;
-nMiniFrames = 100;
+nOut = 100;
+nMiniFrames = 1000;
 
 nMinFerr = 500;
 
@@ -20,12 +20,8 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "Conv"; % no_code/Conv/LDPC
-MAC_code = "Conv"; % no_code/Conv/LDPC
-
-if (MAC_code == "no_code")
-    run_grid_search = 0;
-end
+PHY_code = "no-code"; % no-code/Conv/LDPC
+MAC_code = "Conv"; % no-code/Conv/LDPC
 
 feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
@@ -141,18 +137,19 @@ elseif (PHY_code == "Conv")
             SNRdB_high = 6;
         end
     end
-elseif (PHY_code == "no_code")
+elseif (PHY_code == "no-code")
     targetCodeRate = 1;
     K = N;
     R = 1;
     if (max_rounds == 4)
-        SNRdB_low = 0;
-        SNRdB_high = 10;
+        SNRdB_low = -5;
+        SNRdB_high = 5;
     end
 end
 
-% SNRdB_low = -2;
-% SNRdB_high = SNRdB_high - 4;
+if (MAC_code == "no-code")
+    run_grid_search = 0;
+end
 
 SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
@@ -225,7 +222,7 @@ if (run_grid_search == 1)
         err_thr = err_thr_grid(i_e);
         err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
         err_thr_ada_list_est = 0;
-        run_fb_MAC;
+        run_fb;
 
         % Error Stats
         BER_vec_FB_gs(i_e,:) = BER_vec_FB;
@@ -319,7 +316,7 @@ if (run_grid_search == 1)
     gs_data = load(data_file_name_gs);
     opt_thr = process_bler_data(gs_data);
 else
-    if (MAC_code == "no_code")
+    if (MAC_code == "no-code")
         opt_thr.err_thr_opt = zeros(1,length(SNRdB_vec));
     else
         gs_data = load(data_file_name_gs);
@@ -331,4 +328,4 @@ else
     end
 end
 
-run_harq_vs_fb_MAC;
+run_harq_vs_fb;
