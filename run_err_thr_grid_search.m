@@ -7,8 +7,8 @@ err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-nOut = 100;
-nMiniFrames = 1000;
+nOut = 1;
+nMiniFrames = 200;
 
 nMinFerr = 500;
 
@@ -21,9 +21,9 @@ targetCodeRate = 1/2;
 
 N = 800;
 PHY_code = "no-code"; % no-code/Conv/LDPC
-MAC_code = "Conv"; % no-code/Conv/LDPC
+MAC_code = "no-code"; % no-code/Conv/LDPC
 
-feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
+feedback_mode = "only_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -147,10 +147,6 @@ elseif (PHY_code == "no-code")
     end
 end
 
-if (MAC_code == "no-code")
-    run_grid_search = 0;
-end
-
 SNRdB_step = 0.2;
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
@@ -190,7 +186,7 @@ if (feedback_mode == "MAC_PHY")
     code_comb_str = sprintf('MAC_%s_PHY_%s', MAC_code, PHY_code);
     code_comb_title = sprintf('(MAC-%s, PHY-%s)', MAC_code, PHY_code);
 else
-    code_comb_str = sprintf('PHY_%s', PHY_code, MAC_code);
+    code_comb_str = sprintf('PHY_%s', PHY_code);
     code_comb_title = sprintf('(PHY-%s)', PHY_code);
 end
 
