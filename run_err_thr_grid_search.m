@@ -3,26 +3,26 @@ startup;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.00:0.01:0.1;
+err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
 inf_rounds = 1;
-nOut = 1;
+nOut = 100;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 10;
+max_rounds = 4;
 
 % Code parameters
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "no-code"; % no-code/Conv/LDPC
-MAC_code = "no-code"; % no-code/Conv/LDPC
+PHY_code = "Conv"; % no-code/Conv/LDPC
+MAC_code = "Conv"; % no-code/Conv/LDPC
 
 feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
@@ -157,10 +157,10 @@ if (inf_rounds == 1)
 
     max_rounds = 100;
 
-    SNRdB_low = 0;
-    SNRdB_high = 20;
+    SNRdB_low = -8;
+    SNRdB_high = 10;
 
-    SNRdB_step = 2;
+    SNRdB_step = 1;
 end
 
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
@@ -188,7 +188,7 @@ BER_vec_pr_FB_gs = zeros(gs_size,max_rounds,num_SNRdB);
 BLER_vec_pr_FB_gs = zeros(gs_size,max_rounds,num_SNRdB);
 
 Avg_rounds_FB_gs = zeros(gs_size,num_SNRdB);
-
+Total_channel_use_FB_gs = zeros(gs_size,num_SNRdB);
 
 mod_approx = 0;
 comm_mod = 1;
@@ -246,6 +246,7 @@ if (run_grid_search == 1)
         BLER_vec_pr_FB_gs(i_e,:,:) = BLER_vec_pr_FB;
         
         Avg_rounds_FB_gs(i_e,:) = Avg_rounds_FB;
+        Total_channel_use_FB_gs(i_e,:) = Total_channel_use_FB;
     end
 
     %% Plot the cumulative results
@@ -321,7 +322,9 @@ if (run_grid_search == 1)
     
     leg_str = {};
     for i_e = 1:length(err_thr_grid)
-        SE = (K*k/N) *(1 - squeeze(BLER_vec_FB_gs(i_e,:))) ./squeeze(Avg_rounds_FB_gs(i_e,:));
+        % SE = (K*k/N) *(1 - squeeze(BLER_vec_FB_gs(i_e,:))) ./squeeze(Avg_rounds_FB_gs(i_e,:));
+        SE = (K*k) *(1 - squeeze(BLER_vec_FB_gs(i_e,:))) ./squeeze(Total_channel_use_FB_gs(i_e,:));
+
         plot(SNRdB_vec,SE);
         hold on;
         leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));

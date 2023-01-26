@@ -40,6 +40,9 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     end
     prev_reset_round = 0;%max_rounds;
 
+    if (PHY_code == "LDPC")
+        rxLLR_HARQ_buffer = nrRateRecoverLDPC(rxLLR_HARQ_buffer, K, R, rv, modulation, nlayers, ncb, Nref);
+    end
 
     total_channel_use = 0;
     cur_channel_use = 0;
@@ -333,7 +336,6 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 			%% Receiver
 			% rate matching required for LDPC before CC
 			if (PHY_code == "LDPC")
-				rxLLR_HARQ_buffer = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
 				% Rate recovery
 				newRxLLR_HARQ = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
 			end
