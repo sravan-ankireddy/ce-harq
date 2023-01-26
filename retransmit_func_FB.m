@@ -41,8 +41,10 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     prev_reset_round = 0;%max_rounds;
 
 
+    total_channel_use = 0;
+    cur_channel_use = 0;
     for i_r = 1:max_rounds-1
-
+        cur_channel_use = 0;
         num_err_FB = sum(data ~= double(data_est_FB));
         err_per = num_err_FB/K;
 
@@ -58,7 +60,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
         % Once the error becomes sparse enough, stay on FB scheme
         % Within the FB scheme, you can choose FB/HARQ based on error
         % vector
-        if (decision_switch == 0)
+        if (decision_switch == 0 && feedback_mode ~= "ARQ")
             if (err_per <= err_thr && err_thr > 0)
                 % disp("found sparse err ")
                 % Also check if the error is compressible
@@ -79,6 +81,8 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
             else
                 fb_scheme = "HARQ";
             end
+        elseif (feedback_mode == "ARQ")
+            fb_scheme = "ARQ";
         end
 
         % Update the counter
@@ -173,7 +177,8 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 					end
 				
 				% Direct PHY+MAC coding with lowest possible rate : PHY_code is the only code that matters
-				else
+				elseif ((feedback_mode == "only_PHY"))
+
 					if (PHY_code == "Conv")
 						% find the smallest rate for compression : coding will be only for comp -> K, not N
 						targetErrCodeRate = (length(err_seq)+3)/N;
@@ -207,6 +212,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 
             % generate llrs
             % Pass through channel, modulation, democulation
+            cur_channel_use = length(dataIn);
             rxLLR_FB = transmit_data (channel, dataIn, SNRdB, modulation, dec_type);
 
             if (dec_type == "hard")
@@ -263,7 +269,8 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     
             % Direct decoding if PHY-MAC scheme was NOT used : only PHY
             % code matters
-            else
+            elseif ((feedback_mode == "only_PHY"))
+
                 if (PHY_code == "Conv")
                     outer_err_seq_est = conv_dec(rxLLR_FB,R_phy,dec_type);
 
@@ -304,7 +311,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
                 break;
             end
 
-        % Stay on HARQ if error is not sparse yet
+        % Stay on ARQ/HARQ if error is not sparse yet
         else
 			% generate new tx data
         
@@ -320,6 +327,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
             end
 
 			% Pass through channel, modulation, democulation
+            cur_channel_use = length(dataIn);
             newRxLLR_HARQ = transmit_data (channel, dataIn, SNRdB, modulation, dec_type);
 
 			%% Receiver
@@ -330,15 +338,18 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 				newRxLLR_HARQ = nrRateRecoverLDPC(newRxLLR_HARQ, K, R, rv, modulation, nlayers, ncb, Nref);
 			end
 
-			% Chase Combining
-			if (dec_type == "hard")
-				rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
-				rxLLR_FB_HARQ = round(mean(rxLLR_HARQ_buffer,2));
-			else
-				rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
-				rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
-			end
-
+			% Chase Combining if not ARQ
+            if (feedback_mode ~= "ARQ")
+                if (dec_type == "hard")
+                    rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
+                    rxLLR_FB_HARQ = round(mean(rxLLR_HARQ_buffer,2));
+                else
+                    rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
+                    rxLLR_FB_HARQ = sum(rxLLR_HARQ_buffer,2);
+                end
+            else
+                rxLLR_FB_HARQ = newRxLLR_HARQ;
+            end
 			% Rate recovery and Decoding : data_est_FB will be used to compute errors in next round, keep the variable consistent
 			if (PHY_code == "Conv")
 				data_est_FB = conv_dec(rxLLR_FB_HARQ, R, dec_type);
@@ -361,6 +372,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 	            break;
             end
         end % end of check for feedback_scheme : FB vs HARQ based on sparsity
+        total_channel_use = total_channel_use + cur_channel_use;
 
     end % end of max_rounds for loop
 
@@ -369,7 +381,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     out.Avg_rounds_FB = Avg_rounds_FB;
     out.num_err_FB = num_err_FB;
     out.num_err_vec = num_err_vec;
-
+    out.total_channel_use = total_channel_use;
 
     function comp_rate = comp_rate_conv(targetErrCodeRate, minR, comp_rates)
 

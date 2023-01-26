@@ -51,6 +51,7 @@ BER_vec_pr_FB = zeros(max_rounds,num_SNRdB);
 BLER_vec_pr_FB = zeros(max_rounds,num_SNRdB);
 
 Avg_rounds_FB = zeros(1,num_SNRdB);
+Total_channel_use_FB = zeros(1,num_SNRdB);
 
 
 tic;
@@ -76,7 +77,7 @@ for i_s = 1:length(SNRdB_vec)
     BER_FB_per_round = zeros(max_rounds,1); BLER_FB_per_round = zeros(max_rounds,1);
     % Count the average rounds for successful decoding
     num_ar_fb = 0;
-
+    total_channel_use = 0;
     for i_on = 1:nOut
     
        parfor i_n = 1:nMiniFrames
@@ -87,6 +88,7 @@ for i_s = 1:length(SNRdB_vec)
 
             % Update the counter 
             num_ar_fb = num_ar_fb + 1; 
+            total_channel_use = total_channel_use + N;
 
             % Generate random message
             data = randi([0 1], K, 1);
@@ -166,6 +168,7 @@ for i_s = 1:length(SNRdB_vec)
                 num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
                 num_err_FB = out.num_err_FB;
                 num_err_FB_per_round = out.num_err_vec;
+                total_channel_use = total_channel_use + out.total_channel_use;
             end
 
             BER_FB = BER_FB + num_err_FB;
@@ -175,6 +178,7 @@ for i_s = 1:length(SNRdB_vec)
             BER_FB_per_round = BER_FB_per_round + num_err_FB_per_round;
 
             BLER_FB_per_round = BLER_FB_per_round + (num_err_FB_per_round > 0);
+            
         end
         if (BLER_FB > nMinFerr)
             break;
@@ -182,6 +186,7 @@ for i_s = 1:length(SNRdB_vec)
     end
     % AR update
     Avg_rounds_FB(i_s) = num_ar_fb/(i_on*nMiniFrames);
+    Total_channel_use_FB(i_s) = total_channel_use/(i_on*nMiniFrames);
 
     % Error Stats
     BER_vec_FB(:,i_s) = BER_FB/(K*(i_on*nMiniFrames));
@@ -264,7 +269,7 @@ if (process_data_fb == 1)
     % set the figure properties
     figure('Renderer','painters','Position',[1000 400 800 500]);
     
-    f = semilogy(SNRdB_vec,Avg_rounds_FB,'r-d');
+    f = plot(SNRdB_vec,Avg_rounds_FB,'r-d');
     
     
     xlabel('SNR');
@@ -289,9 +294,11 @@ if (process_data_fb == 1)
     % set the figure properties
     figure('Renderer','painters','Position',[1000 400 800 500]);
     
-    SE = (K*k/N) * (1 - BLER_vec_pr_FB(end,:)./Avg_rounds_FB);
+    % SE = (K*k/N) * (1 - BLER_vec_pr_FB(end,:)./Avg_rounds_FB);
 
-    f = semilogy(SNRdB_vec,SE,'r-d');
+    SE = (K*k)* (1 - BLER_vec_pr_FB(end,:))./Total_channel_use_FB;
+
+    f = plot(SNRdB_vec,SE,'r-d');
     
     
     xlabel('SNR');

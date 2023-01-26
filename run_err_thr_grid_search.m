@@ -3,18 +3,19 @@ startup;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.00:0.005:0.1;
+err_thr_grid = 0.00:0.01:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
+inf_rounds = 1;
 nOut = 1;
-nMiniFrames = 200;
+nMiniFrames = 1000;
 
 nMinFerr = 500;
 
 nFrames = nOut*nMiniFrames;
 
-max_rounds = 4;
+max_rounds = 10;
 
 % Code parameters
 targetCodeRate = 1/2;
@@ -23,7 +24,7 @@ N = 800;
 PHY_code = "no-code"; % no-code/Conv/LDPC
 MAC_code = "no-code"; % no-code/Conv/LDPC
 
-feedback_mode = "only_PHY"; % MAC_PHY/only_PHY
+feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -141,13 +142,27 @@ elseif (PHY_code == "no-code")
     targetCodeRate = 1;
     K = N;
     R = 1;
-    if (max_rounds == 4)
+    if (max_rounds == 10)
+        SNRdB_low = -8;
+        SNRdB_high = 2;
+    elseif (max_rounds == 4)
         SNRdB_low = -5;
         SNRdB_high = 5;
     end
 end
 
 SNRdB_step = 0.2;
+
+if (inf_rounds == 1)
+
+    max_rounds = 100;
+
+    SNRdB_low = 0;
+    SNRdB_high = 20;
+
+    SNRdB_step = 2;
+end
+
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
 
 channel = "awgn";
@@ -179,8 +194,11 @@ mod_approx = 0;
 comm_mod = 1;
 
 err_thr_ada_scheme = "opt";
-
 res_folder_prefix = 'bler_data';
+
+if (inf_rounds == 1)
+    res_folder_prefix = 'bler_data_inf';
+end
 
 if (feedback_mode == "MAC_PHY")
     code_comb_str = sprintf('MAC_%s_PHY_%s', MAC_code, PHY_code);
@@ -231,6 +249,29 @@ if (run_grid_search == 1)
     end
 
     %% Plot the cumulative results
+    % set the figure properties for BER plots
+    f = figure('Renderer','painters','Position',[1000 400 800 500]);
+
+    leg_str = {};
+    for i_e = 1:length(err_thr_grid)
+        semilogy(SNRdB_vec,squeeze(BER_vec_FB_gs(i_e,:)));
+        hold on;
+        leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
+    end
+    xlabel('SNR');
+    ylabel('BER');
+    grid on;
+    legend(leg_str);
+    title_str = sprintf('FB-%s scheme : BER %s, len %d, %s, Rate %.3f, max.rounds %d',code_comb_title, combining_scheme, N, modulation, R, max_rounds);
+    title(title_str);
+    BER_common_str = [res_folder_fb sprintf('/FB_BER_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d_numF_%d',code_comb_str, N, R, err_thr_grid(1), err_thr_grid(end), max_rounds, nFrames)];
+    filename_BER_fig = BER_common_str + ".fig";
+    filename_BER_png = BER_common_str + ".png";
+
+    savefig(filename_BER_fig);
+    saveas(f,filename_BER_png);
+
+    %% Plot the cumulative results
     % set the figure properties for BLER plots
     f = figure('Renderer','painters','Position',[1000 400 800 500]);
 
@@ -258,7 +299,7 @@ if (run_grid_search == 1)
 
     leg_str = {};
     for i_e = 1:length(err_thr_grid)
-        semilogy(SNRdB_vec,squeeze(Avg_rounds_FB_gs(i_e,:)));
+        plot(SNRdB_vec,squeeze(Avg_rounds_FB_gs(i_e,:)));
         hold on;
         leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
     end
@@ -281,7 +322,7 @@ if (run_grid_search == 1)
     leg_str = {};
     for i_e = 1:length(err_thr_grid)
         SE = (K*k/N) *(1 - squeeze(BLER_vec_FB_gs(i_e,:))) ./squeeze(Avg_rounds_FB_gs(i_e,:));
-        semilogy(SNRdB_vec,SE);
+        plot(SNRdB_vec,SE);
         hold on;
         leg_str{end+1} = sprintf('Err thr %.3f',err_thr_grid(i_e));
     end

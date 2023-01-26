@@ -50,10 +50,10 @@ saveas(f,png_name);
 % AR : set the figure properties
 figure('Renderer','painters','Position',[1000 400 800 500]);
 
-f = semilogy(SNRdB_vec,Avg_rounds_HARQ,'b-o');
+f = plot(SNRdB_vec,Avg_rounds_HARQ,'b-o');
 
 hold on;
-semilogy(SNRdB_vec,Avg_rounds_FB_opt,'r-d');
+plot(SNRdB_vec,Avg_rounds_FB_opt,'r-d');
 
 grid on;
 
@@ -78,9 +78,9 @@ figure('Renderer','painters','Position',[1000 400 800 500]);
 SE_HARQ = (K*k/N) * (1 - BLER_HARQ)./Avg_rounds_HARQ;
 SE_FB = (K*k/N) * (1 - BLER_FB_opt)./Avg_rounds_FB;
 
-f = semilogy(SNRdB_vec,SE_HARQ,'b-o');
+f = plot(SNRdB_vec,SE_HARQ,'b-o');
 hold on;
-semilogy(SNRdB_vec,SE_FB,'r-d');
+plot(SNRdB_vec,SE_FB,'r-d');
 
 xlabel('SNR');
 ylabel('Spectral Efficiency [Bits/s/Hz]');
