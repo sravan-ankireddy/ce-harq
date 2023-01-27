@@ -8,7 +8,8 @@ gs_size = length(err_thr_grid);
 
 % sim params
 inf_rounds = 1;
-nOut = 100;
+
+nOut = 10;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -21,7 +22,7 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "Conv"; % no-code/Conv/LDPC
+PHY_code = "no-code"; % no-code/Conv/LDPC
 MAC_code = "Conv"; % no-code/Conv/LDPC
 
 feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
@@ -158,7 +159,7 @@ if (inf_rounds == 1)
     max_rounds = 100;
 
     SNRdB_low = -8;
-    SNRdB_high = 10;
+    SNRdB_high = 2;
 
     SNRdB_step = 1;
 end
