@@ -196,7 +196,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 						targetErrCodeRate = length(err_seq)/N;
 						% N_phy ~= N
 						[K_phy, N_phy, R_phy, bgn_phy] = comp_rate_ldpc(N,nlayers,NREPerPRB,targetErrCodeRate,length(err_seq));
-                        
+
 						% Padding with zeroes to be compatible with ldpc_encode
 						nz_phy = K_phy - length(err_seq);
 						err_seq_n = [err_seq; zeros(nz_phy,1)];
@@ -280,6 +280,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
                 elseif (PHY_code == "LDPC")
                     rxLLR_FB_rr_phy = nrRateRecoverLDPC(rxLLR_FB, K_phy, R_phy, rv, modulation, nlayers, ncb, Nref);
                     [outer_err_seq_est, ~]  = nrldpc_dec(rxLLR_FB_rr_phy, K_phy, max_iter, bgn_phy);
+                    outer_err_seq_est = outer_err_seq_est(1:end-nz_phy);
                 elseif (PHY_code == "no-code")
 
                     outer_err_seq_est = rxLLR_FB > 0;

@@ -7,9 +7,9 @@ err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-inf_rounds = 1;
+inf_rounds = 0;
 
-nOut = 10;
+nOut = 1;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -22,10 +22,10 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "no-code"; % no-code/Conv/LDPC
-MAC_code = "Conv"; % no-code/Conv/LDPC
+PHY_code = "LDPC"; % no-code/Conv/LDPC
+MAC_code = "LDPC"; % no-code/Conv/LDPC
 
-feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
+feedback_mode = "only_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -48,7 +48,7 @@ if (PHY_code == "LDPC")
     targetCodeRate = 1/2;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
-    err_thr_grid = 0.00:0.01:0.2;
+    err_thr_grid = 0.01:0.005:0.05;
     gs_size = length(err_thr_grid);
 
     modulation = 'BPSK';
@@ -91,12 +91,18 @@ if (PHY_code == "LDPC")
             SNRdB_high = -4;
         end
     elseif (targetCodeRate == 1/2)
-        if (max_rounds == 4)
+        if (max_rounds == 10)
+            SNRdB_low = -14;
+            SNRdB_high = -8;
+        elseif (max_rounds == 4)
             SNRdB_low = -8;
             SNRdB_high = -2;
         end   
     elseif (targetCodeRate == 3/4)
-        if (max_rounds == 4)
+        if (max_rounds == 10)
+            SNRdB_low = -12;
+            SNRdB_high = -6;
+        elseif (max_rounds == 4)
             SNRdB_low = -6;
             SNRdB_high = 0;
         end
