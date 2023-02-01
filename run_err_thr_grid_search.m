@@ -6,6 +6,8 @@ run_grid_search = 1;
 err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
+
+
 % sim params
 inf_rounds = 1;
 
@@ -22,8 +24,17 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "Conv"; % no-code/Conv/LDPC
-MAC_code = "Conv"; % no-code/Conv/LDPC
+PHY_code = "no-code"; % no-code/Conv/LDPC
+MAC_code = "no-code"; % no-code/Conv/LDPC
+
+if (inf_rounds == 1 && PHY_code == "no_code" && MAC_code == "no_code")
+    err_thr_grid = 0.5:0.005:0.5;
+
+    if (gs_size == 1)
+        run_grid_search = 0;
+    end
+end
+
 
 feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
@@ -363,15 +374,17 @@ if (run_grid_search == 1)
     gs_data = load(data_file_name_gs);
     [opt_thr, ar_thr, ~]= process_bler_data(gs_data);
 else
-    if (MAC_code == "no-code")
-        opt_thr.err_thr_opt = zeros(1,length(SNRdB_vec));
-    else
+    
+    if (gs_size > 1)
         gs_data = load(data_file_name_gs);
         [opt_thr, ar_thr, ~]= process_bler_data(gs_data);
         nFrames_ref = 100000;
         res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames_ref)];
         outer_str = sprintf('/fb_data_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', code_comb_str, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds);
         data_file_name_gs = [res_folder_fb outer_str];
+    else
+        opt_thr.err_thr_opt = err_thr_grid*ones(1,length(SNRdB_vec));
+        ar_thr.err_thr_opt = err_thr_grid*ones(1,length(SNRdB_vec));
     end
 end
 
