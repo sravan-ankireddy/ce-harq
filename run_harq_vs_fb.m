@@ -32,6 +32,8 @@ f = semilogy(SNRdB_vec,BLER_HARQ,'b-o');
 hold on;
 semilogy(SNRdB_vec,BLER_FB_opt,'r-d');
 
+xlabel('SNR');
+ylabel('BLER');
 grid on;
 
 codeRate = R;
@@ -61,6 +63,8 @@ f = semilogy(SNRdB_vec,BER_HARQ,'b-o');
 hold on;
 semilogy(SNRdB_vec,BER_FB_opt,'r-d');
 
+xlabel('SNR');
+ylabel('BER');
 grid on;
 
 codeRate = R;
@@ -89,6 +93,8 @@ f = plot(SNRdB_vec,Avg_rounds_HARQ,'b-o');
 hold on;
 plot(SNRdB_vec,Avg_rounds_FB_opt,'r-d');
 
+xlabel('SNR');
+ylabel('Avg. Rounds');
 grid on;
 
 % leg_HARQ = sprintf('HARQ-%s Avg Rounds %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
