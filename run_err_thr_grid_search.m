@@ -7,9 +7,9 @@ err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-inf_rounds = 0;
+inf_rounds = 1;
 
-nOut = 1;
+nOut = 10;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -22,10 +22,10 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "LDPC"; % no-code/Conv/LDPC
-MAC_code = "LDPC"; % no-code/Conv/LDPC
+PHY_code = "Conv"; % no-code/Conv/LDPC
+MAC_code = "Conv"; % no-code/Conv/LDPC
 
-feedback_mode = "only_PHY"; % MAC_PHY/only_PHY
+feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -45,10 +45,10 @@ nlayers = 1;
 % LDPC settings
 if (PHY_code == "LDPC")
     dec_type = "unquant";
-    targetCodeRate = 1/2;
+    targetCodeRate = 0.9;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
-    err_thr_grid = 0.01:0.005:0.05;
+    err_thr_grid = 0.00:0.01:0.1;
     gs_size = length(err_thr_grid);
 
     modulation = 'BPSK';
@@ -72,14 +72,6 @@ if (PHY_code == "LDPC")
     K = tbs;
     R = K/N;
 
-    % Choose the combining scheme 
-    combining_scheme = "CC";
-    if (combining_scheme == "IR")
-        rvSeq = [0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1];
-        rvSeq = rvSeq(1:max_rounds);
-    else
-        rvSeq = zeros(1,max_rounds);
-    end
     % SNRdB_low = -4;
     % SNRdB_high = 2;
     if (targetCodeRate == 1/3)
@@ -100,9 +92,14 @@ if (PHY_code == "LDPC")
         end   
     elseif (targetCodeRate == 3/4)
         if (max_rounds == 10)
-            SNRdB_low = -12;
+            SNRdB_low = -9;
             SNRdB_high = -6;
         elseif (max_rounds == 4)
+            SNRdB_low = -6;
+            SNRdB_high = 0;
+        end
+    elseif (targetCodeRate == 0.8)
+        if (max_rounds == 4)
             SNRdB_low = -6;
             SNRdB_high = 0;
         end
@@ -160,14 +157,17 @@ end
 
 SNRdB_step = 0.2;
 
-if (inf_rounds == 1)
-
+if (inf_rounds)
     max_rounds = 100;
+end
 
-    SNRdB_low = -8;
-    SNRdB_high = 2;
-
-    SNRdB_step = 1;
+% Choose the combining scheme 
+combining_scheme = "CC";
+if (combining_scheme == "IR")
+    rvSeq = [0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1];
+    rvSeq = rvSeq(1:max_rounds);
+else
+    rvSeq = zeros(1,max_rounds);
 end
 
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
@@ -361,13 +361,13 @@ if (run_grid_search == 1)
     data_file_name_gs = [res_folder_fb outer_str];
     save(data_file_name_gs,'ber_data','bler_data','ar_data','snr_data','err_thr_grid');
     gs_data = load(data_file_name_gs);
-    opt_thr = process_bler_data(gs_data);
+    [opt_thr, ar_thr, ~]= process_bler_data(gs_data);
 else
     if (MAC_code == "no-code")
         opt_thr.err_thr_opt = zeros(1,length(SNRdB_vec));
     else
         gs_data = load(data_file_name_gs);
-        opt_thr = process_bler_data(gs_data);
+        [opt_thr, ar_thr, ~]= process_bler_data(gs_data);
         nFrames_ref = 100000;
         res_folder_fb = [res_folder_prefix sprintf('/%s/%d/%s/fb/%s/%d',channel, N, dec_type, modulation, nFrames_ref)];
         outer_str = sprintf('/fb_data_%s_%d_rate_%.3f_err_thr_%.3f_to_%.3f_max_rounds_%d.mat', code_comb_str, N, R, err_thr_grid(1),err_thr_grid(end), max_rounds);

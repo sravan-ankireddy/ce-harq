@@ -15,6 +15,9 @@ Avg_rounds_HARQ = Avg_rounds_FB;
 
 % run fb with opt err_thr
 err_thr_ada_list = opt_thr.err_thr_opt;
+if (inf_rounds == 1)
+    err_thr_ada_list = ar_thr.err_thr_opt;
+end
 run_fb;
 
 BLER_FB_opt = BLER_vec_FB;
