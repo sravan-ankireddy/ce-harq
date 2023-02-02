@@ -38,7 +38,7 @@ grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ');
-leg_FB = sprintf('F-HARQ');
+leg_FB = sprintf('CE-HARQ');
 % leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
 % leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
@@ -69,7 +69,7 @@ grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ');
-leg_FB = sprintf('F-HARQ');
+leg_FB = sprintf('CE-HARQ');
 % leg_HARQ = sprintf('HARQ-%s BER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
 % leg_FB = sprintf('FB-%s BER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
