@@ -40,10 +40,6 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     end
     prev_reset_round = 0;%max_rounds;
 
-    if (PHY_code == "LDPC")
-        rxLLR_HARQ_buffer = nrRateRecoverLDPC(rxLLR_HARQ_buffer, K, R, rv, modulation, nlayers, ncb, Nref);
-    end
-
     total_channel_use = 0;
     cur_channel_use = 0;
     for i_r = 1:max_rounds-1
@@ -216,7 +212,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
             % generate llrs
             % Pass through channel, modulation, democulation
             cur_channel_use = length(dataIn);
-            rxLLR_FB = transmit_data (channel, dataIn, SNRdB, modulation, dec_type);
+            rxLLR_FB = transmit_data (channel, dataIn, SNRdB, modulation, dec_type);  
 
             if (dec_type == "hard")
 			    rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
@@ -254,6 +250,12 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 			    % map to 1 - 2*c for LLRs : FIX ME : Is Chase Combining at this level useless?
 			    if (dec_type == "hard")
 				    rxLLR_FB_mac = outer_err_seq_est;
+                    % convert bits to llr if LDPC
+                    if (MAC_code == "LDPC")
+                        rxLLR_FB_mac = 1 - 2*rxLLR_FB_mac;
+                        disp(R_mac);
+                        disp(K_mac);
+                    end
 			    else
 				    rxLLR_FB_mac = 1 - 2*outer_err_seq_est;
 			    end
@@ -291,7 +293,9 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 
 		    % Decompress
 		    err_deseq_est = arithdeco(double(inner_err_seq_est),counts,length(data))-1;
-
+            whos err_seq
+            whos inner_err_seq_est
+            n_err = (err_seq ~= inner_err_seq_est)
 		    % Correct regardless of CRC but store the data (before
 		    % correction) : except for last round
 		    data_est_FB_prev = data_est_FB;
@@ -452,6 +456,10 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 				bpskDemodulator.PhaseOffset = pi/4; 
 				bpskDemodulator.DecisionMethod = 'Hard decision';
 				generate_llr = bpskDemodulator(newRxSig);
+                % convert bits to llr if LDPC
+                if (PHY_code == "LDPC")
+                    generate_llr = 1 - 2*generate_llr;
+                end
 			else
 				bpskDemodulator = comm.BPSKDemodulator; 
 				bpskDemodulator.PhaseOffset = pi/4; 

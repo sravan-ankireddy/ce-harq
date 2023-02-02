@@ -15,6 +15,9 @@ Avg_rounds_HARQ = Avg_rounds_FB;
 
 % run fb with opt err_thr
 err_thr_ada_list = opt_thr.err_thr_opt;
+if (inf_rounds == 1)
+    err_thr_ada_list = ar_thr.err_thr_opt;
+end
 run_fb;
 
 BLER_FB_opt = BLER_vec_FB;
@@ -29,11 +32,13 @@ f = semilogy(SNRdB_vec,BLER_HARQ,'b-o');
 hold on;
 semilogy(SNRdB_vec,BLER_FB_opt,'r-d');
 
+xlabel('SNR');
+ylabel('BLER');
 grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ');
-leg_FB = sprintf('F-HARQ');
+leg_FB = sprintf('CE-HARQ');
 % leg_HARQ = sprintf('HARQ-%s BLER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
 % leg_FB = sprintf('FB-%s BLER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
@@ -58,11 +63,13 @@ f = semilogy(SNRdB_vec,BER_HARQ,'b-o');
 hold on;
 semilogy(SNRdB_vec,BER_FB_opt,'r-d');
 
+xlabel('SNR');
+ylabel('BER');
 grid on;
 
 codeRate = R;
 leg_HARQ = sprintf('HARQ');
-leg_FB = sprintf('F-HARQ');
+leg_FB = sprintf('CE-HARQ');
 % leg_HARQ = sprintf('HARQ-%s BER Rate %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);
 % leg_FB = sprintf('FB-%s BER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
 
@@ -86,6 +93,8 @@ f = plot(SNRdB_vec,Avg_rounds_HARQ,'b-o');
 hold on;
 plot(SNRdB_vec,Avg_rounds_FB_opt,'r-d');
 
+xlabel('SNR');
+ylabel('Avg. Rounds');
 grid on;
 
 % leg_HARQ = sprintf('HARQ-%s Avg Rounds %.3f, max. %d rounds', combining_scheme, codeRate, max_rounds);

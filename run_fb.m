@@ -129,6 +129,10 @@ for i_s = 1:length(SNRdB_vec)
                     bpskDemodulator.PhaseOffset = pi/4; 
                     bpskDemodulator.DecisionMethod = 'Hard decision';
                     rxLLR = bpskDemodulator(rxSig);
+                    % convert bits to llr if LDPC
+                    if (PHY_code == "LDPC")
+                        rxLLR = 1 - 2*rxLLR;
+                    end
                 else
                     bpskDemodulator = comm.BPSKDemodulator; 
                     bpskDemodulator.PhaseOffset = pi/4; 
@@ -164,7 +168,7 @@ for i_s = 1:length(SNRdB_vec)
             
             % Start retransmission if 1st round failed
             if (num_err > 0 && max_rounds > 1)
-                out = retransmit_func_FB(channel,SNRdB,modulation,N,K,targetCodeRate,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
+                out = retransmit_func_FB(channel,SNRdB,modulation,N,K,targetCodeRate,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR_rr,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
                 num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
                 num_err_FB = out.num_err_FB;
                 num_err_FB_per_round = out.num_err_vec;
@@ -224,7 +228,7 @@ if (process_data_fb == 1)
     grid on;
     
     codeRate = R;
-    leg_FB = 'F-HARQ';
+    leg_FB = 'CE-HARQ';
     % leg_FB = sprintf('FB-%s BER Rate %.3f, max. %d rounds',combining_scheme, codeRate, max_rounds);
     
     legend(leg_FB);
