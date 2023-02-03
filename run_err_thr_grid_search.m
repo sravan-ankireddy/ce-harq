@@ -7,9 +7,9 @@ err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-inf_rounds = 1;
+inf_rounds = 0;
 
-nOut = 10;
+nOut = 100;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -54,11 +54,20 @@ nlayers = 1;
 % LDPC settings
 if (PHY_code == "LDPC")
     dec_type = "hard";
-    targetCodeRate = 0.5;
+    targetCodeRate = 3/4;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     err_thr_grid = 0.00:0.01:0.2;
     gs_size = length(err_thr_grid);
+
+    if (MAC_code == "no-code")
+        err_thr_grid = 0.5:0.005:0.5;
+        gs_size = length(err_thr_grid);
+        if (gs_size == 1)
+            run_grid_search = 0;
+        end
+    end
+    
 
     modulation = 'BPSK';
     k = bits_per_symbol(modulation);
@@ -111,7 +120,7 @@ if (PHY_code == "LDPC")
             SNRdB_high = -6;
         elseif (max_rounds == 4)
             SNRdB_low = -6;
-            SNRdB_high = 0;
+            SNRdB_high = -1;
         end
     elseif (targetCodeRate == 0.8)
         if (max_rounds == 4)
