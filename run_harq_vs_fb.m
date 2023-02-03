@@ -47,7 +47,11 @@ legend(leg_HARQ, leg_FB);
 title_name = sprintf('FB-%s : BLER %s, len %d, %s, Rate %.3f, errthr : %s, max. rounds %d',code_comb_title, combining_scheme, N, modulation, R,err_thr_ada_scheme,  max_rounds);
 title(title_name);
 
-common_str = [res_folder_harq_vs_fb sprintf('/BLER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+if (gs_size > 1)
+    common_str = [res_folder_harq_vs_fb sprintf('/BLER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+else
+    common_str = [res_folder_harq_vs_fb sprintf('/BLER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_fixed_%.3f_max_rounds_%d',code_comb_str, N, R,  err_thr_grid(1), max_rounds)];
+end
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
@@ -78,7 +82,12 @@ legend(leg_HARQ, leg_FB);
 title_name = sprintf('FB-%s : BER %s, len %d, %s, Rate %.3f, errthr : %s, max. rounds %d',code_comb_title, combining_scheme, N, modulation, R,err_thr_ada_scheme,  max_rounds);
 title(title_name);
 
-common_str = [res_folder_harq_vs_fb sprintf('/BER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+if (gs_size > 1)
+    common_str = [res_folder_harq_vs_fb sprintf('/BER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+else
+    common_str = [res_folder_harq_vs_fb sprintf('/BER_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_fixed_%.3f_max_rounds_%d',code_comb_str, N, R,  err_thr_grid(1), max_rounds)];
+end
+
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
@@ -105,7 +114,11 @@ legend(leg_HARQ, leg_FB);
 title_name = sprintf('FB-%s : Avg rounds %s, len %d, %s, Rate %.3f, errthr : %s , max. rounds %d',combining_scheme, code_comb_title, N, modulation, R, err_thr_ada_scheme, max_rounds);
 title(title_name);
 
-common_str = [res_folder_harq_vs_fb sprintf('/Avg_rounds_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d', code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+if (gs_size > 1)
+    common_str = [res_folder_harq_vs_fb sprintf('/Avg_rounds_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+else
+    common_str = [res_folder_harq_vs_fb sprintf('/Avg_rounds_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_fixed_%.3f_max_rounds_%d',code_comb_str, N, R,  err_thr_grid(1), max_rounds)];
+end
 
 fig_name = common_str + ".fig";
 savefig(fig_name);
@@ -134,7 +147,11 @@ legend(leg_HARQ, leg_FB);
 title_name = sprintf('FB-%s : Spectral Efficiency %s, len %d, %s, Rate %.3f, errthr : %s , max. rounds %d',code_comb_title, combining_scheme, N, modulation, R, err_thr_ada_scheme, max_rounds);
 title(title_name);
 
-common_str = [res_folder_harq_vs_fb sprintf('/Spectral Efficiency_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+if (gs_size > 1)
+    common_str = [res_folder_harq_vs_fb sprintf('Spectral_Efficiency_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_gs_%s_max_rounds_%d',code_comb_str, N, R, err_thr_ada_scheme, max_rounds)];
+else
+    common_str = [res_folder_harq_vs_fb sprintf('/Spectral_Efficiency_HARQ_vs_FB_%s_%d_rate_%.3f_err_thr_fixed_%.3f_max_rounds_%d',code_comb_str, N, R,  err_thr_grid(1), max_rounds)];
+end
 
 fig_name = common_str + ".fig";
 savefig(fig_name);

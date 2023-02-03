@@ -130,7 +130,11 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
                         R_mac = comp_rate_conv(targetErrCodeRate, minR, comp_rates);
 
                         % encode to length <= K
-                        comp_code_inner = conv_enc(err_seq, R_mac);
+                        if (R_mac <= comp_rates(1))
+                            comp_code_inner = conv_enc(err_seq, R_mac);
+                        else
+                            comp_code_inner = err_seq;
+                        end
 
                         % interleaver between inner and outer code
                         comp_code_inner = randintrlv(comp_code_inner,int_state);
@@ -260,7 +264,11 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     
 			    % next decode inner code -- MAC
                 if (MAC_code == "Conv")
-                    inner_err_seq_est = conv_dec(rxLLR_FB_mac,R_mac,dec_type);
+                    if (R_mac <= comp_rates(1))
+                        inner_err_seq_est = conv_dec(rxLLR_FB_mac,R_mac,dec_type);
+                    else
+                        inner_err_seq_est = rxLLR_FB_mac;
+                    end
                 
                 elseif (MAC_code == "LDPC")
                     rxLLR_FB_rr_mac = nrRateRecoverLDPC(rxLLR_FB_mac, K_mac, R_mac, rv, modulation, nlayers, ncb, Nref);
@@ -396,8 +404,15 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
             else
                 while (comp_rates(min_ind) < targetErrCodeRate)
                     min_ind = min_ind - 1;
+                    if (min_ind < 1)
+                        break;
+                    end
                 end
-                comp_rate = comp_rates(min_ind);
+                if (min_ind > 0)
+                    comp_rate = comp_rates(min_ind);
+                else
+                    comp_rate = 1;
+                end
             end
         else
             comp_rate = comp_rates(end);
