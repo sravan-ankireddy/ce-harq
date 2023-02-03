@@ -59,29 +59,25 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
         % Once the error becomes sparse enough, stay on FB scheme
         % Within the FB scheme, you can choose FB/HARQ based on error
         % vector
-        if (decision_switch == 0 && feedback_mode ~= "ARQ")
-            if (err_per <= err_thr && err_thr > 0)
-                % disp("found sparse err ")
-                % Also check if the error is compressible
-                data_est_err_temp = mod(data+double(data_est_FB),2);
-                % iterative counts
-                p_cur = max(1,round(100 * sum(data_est_err_temp)/length(data_est_err_temp)));
-                counts_temp = [100-p_cur p_cur];
-                err_seq_temp = arithenco(data_est_err_temp+1,counts_temp);
-                % err_seq_temp = arithenco(data_est_err_temp+1,counts);
-                if (length(err_seq_temp) < length(data_est_err_temp))
-                    fb_scheme = "FB";
-                    decision_switch = 1;
-                    counts = counts_temp;
-                    % disp(" switched to feedback ")
-                else
-                    fb_scheme = "HARQ";
-                end
+        if (err_per <= err_thr && err_thr > 0)
+            % disp("found sparse err ")
+            % Also check if the error is compressible
+            data_est_err_temp = mod(data+double(data_est_FB),2);
+            % iterative counts
+            p_cur = max(1,round(100 * sum(data_est_err_temp)/length(data_est_err_temp)));
+            counts_temp = [100-p_cur p_cur];
+            err_seq_temp = arithenco(data_est_err_temp+1,counts_temp);
+            % err_seq_temp = arithenco(data_est_err_temp+1,counts);
+            if (length(err_seq_temp) < length(data_est_err_temp))
+                fb_scheme = "FB";
+                decision_switch = 1;
+                counts = counts_temp;
+                % disp(" switched to feedback ")
             else
                 fb_scheme = "HARQ";
             end
-        elseif (feedback_mode == "ARQ")
-            fb_scheme = "ARQ";
+        else
+            fb_scheme = "HARQ";
         end
 
         % Update the counter
@@ -218,12 +214,16 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
             cur_channel_use = length(dataIn);
             rxLLR_FB = transmit_data (channel, dataIn, SNRdB, modulation, dec_type);  
 
-            if (dec_type == "hard")
-			    rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
-			    rxLLR_FB = round(mean(rxLLR_FB_buffer, 2));
-		    else
-			    rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
-			    rxLLR_FB = sum(rxLLR_FB_buffer, 2);
+            if (combining_scheme ~= "ARQ")
+                if (dec_type == "hard")
+                    rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
+                    rxLLR_FB = round(mean(rxLLR_FB_buffer, 2));
+                else
+                    rxLLR_FB_buffer = [rxLLR_FB_buffer rxLLR_FB];
+                    rxLLR_FB = sum(rxLLR_FB_buffer, 2);
+                end
+            else
+                rxLLR_FB = rxLLR_FB;
             end
     
 		    % Rate rec and Decoding
@@ -350,7 +350,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 			end
 
 			% Chase Combining if not ARQ
-            if (feedback_mode ~= "ARQ")
+            if (combining_scheme ~= "ARQ")
                 if (dec_type == "hard")
                     rxLLR_HARQ_buffer = [rxLLR_HARQ_buffer newRxLLR_HARQ];
                     rxLLR_FB_HARQ = round(mean(rxLLR_HARQ_buffer,2));

@@ -3,8 +3,8 @@ startup;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.00:0.005:0.1;
-err_thr_grid = 0.5:0.005:0.5; % turning of selection; always compress
+err_thr_grid = 0.00:0.01:0.2;
+% err_thr_grid = 0.5:0.005:0.5; % turning of selection; always compress
 gs_size = length(err_thr_grid);
 
 if (gs_size == 1)
@@ -14,7 +14,7 @@ end
 % sim params
 inf_rounds = 0;
 
-nOut = 100;
+nOut = 1;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -27,7 +27,7 @@ max_rounds = 4;
 targetCodeRate = 1/2;
 
 N = 800;
-PHY_code = "no-code"; % no-code/Conv/LDPC
+PHY_code = "Conv"; % no-code/Conv/LDPC
 MAC_code = "Conv"; % no-code/Conv/LDPC
 
 if (MAC_code == "no-code")
@@ -41,7 +41,7 @@ end
 feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
-combining_scheme = "CC";
+combining_scheme = "ARQ";
 dec_type = "hard";
 
 modulation = 'BPSK';
@@ -183,19 +183,17 @@ elseif (PHY_code == "no-code")
     end
 end
 
-SNRdB_step = 0.2;
+SNRdB_step = 0.25;
 
 if (inf_rounds)
     max_rounds = 100;
 end
 
-% Choose the combining scheme 
-combining_scheme = "CC";
+% Set rvSeq
+rvSeq = zeros(1,max_rounds);
 if (combining_scheme == "IR")
     rvSeq = [0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1 0 2 3 1];
     rvSeq = rvSeq(1:max_rounds);
-else
-    rvSeq = zeros(1,max_rounds);
 end
 
 SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
@@ -213,6 +211,13 @@ end
 if (modulation == "QPSK")
     SNRdB_vec = SNRdB_vec + 3;
 end
+
+if (combining_scheme == "ARQ")
+    SNRdB_low = SNRdB_low - 1;
+    SNRdB_vec = SNRdB_low:SNRdB_step:SNRdB_high;
+    SNRdB_vec = SNRdB_vec + 3;
+end
+
 num_SNRdB = length(SNRdB_vec);
 
 % Error Stats
@@ -230,6 +235,10 @@ comm_mod = 1;
 
 err_thr_ada_scheme = "opt";
 res_folder_prefix = 'bler_data';
+
+if (combining_scheme == "ARQ")
+    res_folder_prefix = 'bler_data_ARQ';
+end
 
 if (inf_rounds == 1)
     res_folder_prefix = 'bler_data_inf';
