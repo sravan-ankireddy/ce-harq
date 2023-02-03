@@ -253,8 +253,6 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
                     % convert bits to llr if LDPC
                     if (MAC_code == "LDPC")
                         rxLLR_FB_mac = 1 - 2*rxLLR_FB_mac;
-                        disp(R_mac);
-                        disp(K_mac);
                     end
 			    else
 				    rxLLR_FB_mac = 1 - 2*outer_err_seq_est;
@@ -293,9 +291,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
 
 		    % Decompress
 		    err_deseq_est = arithdeco(double(inner_err_seq_est),counts,length(data))-1;
-            whos err_seq
-            whos inner_err_seq_est
-            n_err = (err_seq ~= inner_err_seq_est)
+
 		    % Correct regardless of CRC but store the data (before
 		    % correction) : except for last round
 		    data_est_FB_prev = data_est_FB;

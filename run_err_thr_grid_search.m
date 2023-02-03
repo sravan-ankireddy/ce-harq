@@ -7,9 +7,9 @@ err_thr_grid = 0.00:0.005:0.1;
 gs_size = length(err_thr_grid);
 
 % sim params
-inf_rounds = 0;
+inf_rounds = 1;
 
-nOut = 1;
+nOut = 10;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -34,7 +34,7 @@ if (MAC_code == "no-code")
 end
 
 
-feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
+feedback_mode = "only_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
 combining_scheme = "CC";
@@ -57,7 +57,7 @@ if (PHY_code == "LDPC")
     targetCodeRate = 0.5;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
-    err_thr_grid = 0.01:0.01:0.05;
+    err_thr_grid = 0.00:0.01:0.2;
     gs_size = length(err_thr_grid);
 
     modulation = 'BPSK';
@@ -83,6 +83,12 @@ if (PHY_code == "LDPC")
 
     % SNRdB_low = -4;
     % SNRdB_high = 2;
+    if (targetCodeRate == 0.05)
+        if (max_rounds == 4)
+            SNRdB_low = -10;
+            SNRdB_high = -4;
+        end
+    end
     if (targetCodeRate == 1/3)
         if (max_rounds == 10)
             SNRdB_low = -10;
@@ -372,7 +378,6 @@ if (run_grid_search == 1)
     gs_data = load(data_file_name_gs);
     [opt_thr, ar_thr, ~]= process_bler_data(gs_data);
 else
-    
     if (gs_size > 1)
         gs_data = load(data_file_name_gs);
         [opt_thr, ar_thr, ~]= process_bler_data(gs_data);
