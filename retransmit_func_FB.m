@@ -59,7 +59,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
         % Once the error becomes sparse enough, stay on FB scheme
         % Within the FB scheme, you can choose FB/HARQ based on error
         % vector
-        if (err_per <= err_thr && err_thr > 0)
+        if (err_per <= err_thr && err_thr > 0 && decision_switch == 0)
             % disp("found sparse err ")
             % Also check if the error is compressible
             data_est_err_temp = mod(data+double(data_est_FB),2);
