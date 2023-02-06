@@ -3,7 +3,7 @@ startup;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.00:0.01:0.2;
+err_thr_grid = 0.00:0.01:0.1;
 % err_thr_grid = 0.5:0.005:0.5; % turning of selection; always compress
 gs_size = length(err_thr_grid);
 
@@ -14,7 +14,7 @@ end
 % sim params
 inf_rounds = 0;
 
-nOut = 1;
+nOut = 100;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -24,7 +24,7 @@ nFrames = nOut*nMiniFrames;
 max_rounds = 4;
 
 % Code parameters
-targetCodeRate = 1/2;
+targetCodeRate = 3/4;
 
 N = 800;
 PHY_code = "Conv"; % no-code/Conv/LDPC
@@ -41,7 +41,7 @@ end
 feedback_mode = "MAC_PHY"; % MAC_PHY/only_PHY
 K = round(N*targetCodeRate);
 R = targetCodeRate;
-combining_scheme = "ARQ";
+combining_scheme = "CC";
 dec_type = "hard";
 
 modulation = 'BPSK';
@@ -58,10 +58,16 @@ nlayers = 1;
 % LDPC settings
 if (PHY_code == "LDPC")
     dec_type = "hard";
-    targetCodeRate = 3/4;
+    targetCodeRate = 0.8;
     K = round(N*targetCodeRate);
     R = targetCodeRate;
     err_thr_grid = 0.00:0.01:0.2;
+
+    % err_thr_grid = 0.5:0.005:0.5;
+    gs_size = length(err_thr_grid);
+    if (gs_size == 1)
+        run_grid_search = 0;
+    end
     gs_size = length(err_thr_grid);
 
     if (MAC_code == "no-code")
@@ -183,7 +189,7 @@ elseif (PHY_code == "no-code")
     end
 end
 
-SNRdB_step = 0.25;
+SNRdB_step = 0.2;
 
 if (inf_rounds)
     max_rounds = 100;
