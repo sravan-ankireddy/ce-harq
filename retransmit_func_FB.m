@@ -1,4 +1,4 @@
-function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
+function out = retransmit_func_FB(channel,SNRdB,feedback_SNRdB,modulation,N,K,R,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed)
     
     rng(seed);
     int_state = seed;
@@ -32,7 +32,7 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     NREPerPRB = 12*4; % For URLLC, 2-7 is the typical choice
 
     min_bler = 1e-4;
-    harq_data_path = sprintf('bler_data/awgn/%d/%s/harq/%s/100000/harq_data_Conv_%d_rate_0.833_rate_0.083_max_rounds_%d.mat', N, dec_type, modulation, N, max_rounds);
+    harq_data_path = sprintf('bler_data_%.1f/awgn/%d/%s/harq/%s/100000/harq_data_Conv_%d_rate_0.833_rate_0.083_max_rounds_%d.mat', feedback_SNRdB, N, dec_type, modulation, N, max_rounds);
     acomp_table_path = sprintf('lut_data/acomp_%d_ns_100000.mat', K);
     if (err_thr_ada_scheme == "est")
         harq_data = load(harq_data_path);
@@ -44,6 +44,15 @@ function out = retransmit_func_FB(channel,SNRdB,modulation,N,K,R,MAC_code,PHY_co
     cur_channel_use = 0;
     for i_r = 1:max_rounds-1
         cur_channel_use = 0;
+
+        % send feedback through noisy channel - uncoded
+        if feedback_SNRdB == 100
+            data_est_FB = data_est_FB;
+        else
+            data_est_FB = (1 - 2*data_est_FB) + randn(size(data_est_FB))*sqrt(1./(10.^(feedback_SNRdB/10)));
+            data_est_FB = 0.5 - sign(data_est_FB)*0.5;
+        end
+
         num_err_FB = sum(data ~= double(data_est_FB));
         err_per = num_err_FB/K;
 

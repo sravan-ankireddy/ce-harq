@@ -59,6 +59,7 @@ for i_s = 1:length(SNRdB_vec)
     SNRdB = round(SNRdB_vec(i_s),4);
 
     noiseVar = 1./(10.^(SNRdB/10));
+    feedback_noiseVar = 1./(10.^(feedback_SNRdB/10));
 
     err_thr = err_thr_ada_list(i_s);
 
@@ -80,7 +81,7 @@ for i_s = 1:length(SNRdB_vec)
     total_channel_use = 0;
     for i_on = 1:nOut
     
-       parfor i_n = 1:nMiniFrames
+       for i_n = 1:nMiniFrames
             
             seed = i_n + (i_on-1)*nMiniFrames;
             
@@ -168,7 +169,7 @@ for i_s = 1:length(SNRdB_vec)
             
             % Start retransmission if 1st round failed
             if (num_err > 0 && max_rounds > 1)
-                out = retransmit_func_FB(channel,SNRdB,modulation,N,K,targetCodeRate,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR_rr,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
+                out = retransmit_func_FB(channel,SNRdB,feedback_SNRdB,modulation,N,K,targetCodeRate,MAC_code,PHY_code,feedback_mode,combining_scheme,rvSeq,ncb,Nref,max_iter,nlayers,dec_type,data,rxLLR_rr,data_est,err_thr,err_thr_ada_list_est,err_thr_ada_scheme,i_s,max_rounds,counts,num_err,comm_mod,mod_approx,seed);
                 num_ar_fb = num_ar_fb + out.Avg_rounds_FB;
                 num_err_FB = out.num_err_FB;
                 num_err_FB_per_round = out.num_err_vec;

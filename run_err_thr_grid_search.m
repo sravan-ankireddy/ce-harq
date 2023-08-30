@@ -3,7 +3,7 @@ startup;
 global_settings = 1;
 run_grid_search = 1;
 
-err_thr_grid = 0.00:0.01:0.1;
+err_thr_grid = 0.02:0.01:0.1;
 % err_thr_grid = 0.5:0.005:0.5; % turning of selection; always compress
 gs_size = length(err_thr_grid);
 
@@ -14,7 +14,7 @@ end
 % sim params
 inf_rounds = 0;
 
-nOut = 100;
+nOut = 1;
 nMiniFrames = 1000;
 
 nMinFerr = 500;
@@ -29,6 +29,8 @@ targetCodeRate = 3/4;
 N = 800;
 PHY_code = "Conv"; % no-code/Conv/LDPC
 MAC_code = "Conv"; % no-code/Conv/LDPC
+
+feedback_SNRdB = 5; % 100 = noiseless
 
 if (MAC_code == "no-code")
     err_thr_grid = 0.5:0.005:0.5;
@@ -240,7 +242,7 @@ mod_approx = 0;
 comm_mod = 1;
 
 err_thr_ada_scheme = "opt";
-res_folder_prefix = 'bler_data';
+res_folder_prefix = sprintf('bler_data_%.1f',feedback_SNRdB);
 
 if (combining_scheme == "ARQ")
     res_folder_prefix = 'bler_data_ARQ';

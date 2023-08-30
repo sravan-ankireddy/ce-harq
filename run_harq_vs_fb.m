@@ -5,6 +5,7 @@ err_thr = 0.00;
 err_thr_ada_list = err_thr*ones(size(SNRdB_vec));
 err_thr_ada_list_est = zeros(max_rounds,length(SNRdB_vec));
 
+% call this script for running all simulations 
 run_fb;
 
 err_thr_ada_scheme = "opt";
